@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "coba-app",
+    "slug": "coba-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.cahyadp22.cobaapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6187b7f6-2ee9-4b36-a678-d5aef2b1e9f3"
+      }
+    }
+  }
+}
