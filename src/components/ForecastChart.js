@@ -11,15 +11,18 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { getWAQIColor, getWAQILabel } from '../lib/waqiApi';
+import { useLanguage } from '../i18n/i18n';
 
 const { width } = Dimensions.get('window');
 
 export default function ForecastChart({ forecastData, loading }) {
+  const { t } = useLanguage();
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={styles.loadingText}>Memuat prakiraan...</Text>
+        <Text style={styles.loadingText}>{t('forecast_loading') || 'Memuat prakiraan...'}</Text>
       </View>
     );
   }
@@ -28,8 +31,8 @@ export default function ForecastChart({ forecastData, loading }) {
     return (
       <View style={styles.emptyContainer}>
         <Feather name="cloud-rain" size={32} color={colors.textGray} />
-        <Text style={styles.emptyText}>Data prakiraan belum tersedia</Text>
-        <Text style={styles.emptySubtext}>Coba lagi nanti</Text>
+        <Text style={styles.emptyText}>{t('forecast_unavailable') || 'Data prakiraan belum tersedia'}</Text>
+        <Text style={styles.emptySubtext}>{t('forecast_retry') || 'Coba lagi nanti'}</Text>
       </View>
     );
   }
@@ -44,15 +47,16 @@ export default function ForecastChart({ forecastData, loading }) {
         {forecastData.map((item, index) => {
           const aqi = item.aqi || 0;
           const color = getWAQIColor(aqi);
-          const label = getWAQILabel(aqi);
+          const label = getWAQILabel(aqi, t);
           const isToday = index === 0;
 
+          // ✅ FIX: Definisikan barHeight
           const barHeight = Math.min((aqi / 300) * 120, 120);
 
           return (
             <View key={index} style={styles.dayContainer}>
               <Text style={[styles.dayLabel, isToday && styles.todayLabel]}>
-                {isToday ? 'Hari Ini' : item.day || `H+${index}`}
+                {isToday ? (t('home_today') || 'Hari Ini') : item.day || `H+${index}`}
               </Text>
               <View style={styles.barWrapper}>
                 <View
@@ -77,7 +81,7 @@ export default function ForecastChart({ forecastData, loading }) {
       </ScrollView>
 
       <Text style={styles.forecastNote}>
-        Perkiraan berdasarkan pola historis
+        {t('forecast_note') || 'Perkiraan berdasarkan pola historis'}
       </Text>
     </View>
   );

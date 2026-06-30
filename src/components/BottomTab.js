@@ -2,14 +2,17 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { Feather, Ionicons, FontAwesome5, Octicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/i18n';
 
 export default function BottomTab({ activeTab, onTabPress }) {
+  const { t } = useLanguage();
+
   const tabs = [
-    { id: 'home', label: 'Home', activeIcon: () => <Octicons name="home" size={24} color={colors.primary} />, inactiveIcon: () => <Octicons name="home" size={22} color={colors.textGray} /> },
-    { id: 'peta', label: 'Peta', activeIcon: () => <Ionicons name="map" size={24} color={colors.primary} />, inactiveIcon: () => <Ionicons name="map-outline" size={22} color={colors.textGray} /> },
-    { id: 'rute', label: 'Rute', activeIcon: () => <FontAwesome5 name="route" size={22} color={colors.primary} />, inactiveIcon: () => <FontAwesome5 name="route" size={20} color={colors.textGray} /> },
-    { id: 'tren', label: 'Tren', activeIcon: () => <Feather name="trending-up" size={24} color={colors.primary} />, inactiveIcon: () => <Feather name="trending-up" size={22} color={colors.textGray} /> },
-    { id: 'profil', label: 'Profil', activeIcon: () => <Feather name="user" size={24} color={colors.primary} />, inactiveIcon: () => <Feather name="user" size={22} color={colors.textGray} /> },
+    { id: 'home', label: t('tab_home'), activeIcon: () => <Octicons name="home" size={24} color={colors.primary} />, inactiveIcon: () => <Octicons name="home" size={22} color={colors.textGray} /> },
+    { id: 'peta', label: t('tab_map'), activeIcon: () => <Ionicons name="map" size={24} color={colors.primary} />, inactiveIcon: () => <Ionicons name="map-outline" size={22} color={colors.textGray} /> },
+    { id: 'rute', label: t('tab_route'), activeIcon: () => <FontAwesome5 name="route" size={22} color={colors.primary} />, inactiveIcon: () => <FontAwesome5 name="route" size={20} color={colors.textGray} /> },
+    { id: 'tren', label: t('tab_trend'), activeIcon: () => <Feather name="trending-up" size={24} color={colors.primary} />, inactiveIcon: () => <Feather name="trending-up" size={22} color={colors.textGray} /> },
+    { id: 'profil', label: t('tab_profile'), activeIcon: () => <Feather name="user" size={24} color={colors.primary} />, inactiveIcon: () => <Feather name="user" size={22} color={colors.textGray} /> },
   ];
 
   return (

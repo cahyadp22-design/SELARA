@@ -1,4 +1,4 @@
-// src/screens/HomeScreen.js
+// screens/HomeScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -22,7 +22,14 @@ import { colors } from '../theme/colors';
 import AQIIndicator from '../components/AQIIndicator';
 import ForecastChart from '../components/ForecastChart';
 import BottomTab from '../components/BottomTab';
-import { fetchWAQIPollution, getWAQIColor, getWAQILabel, hasData } from '../lib/waqiApi';
+import {
+  fetchWAQIPollution,
+  getWAQIColor,
+  getWAQILabel,
+  hasData,
+  getWAQIRecommendation
+} from '../lib/waqiApi';
+import { useLanguage } from '../i18n/i18n';
 
 const { height } = Dimensions.get('window');
 
@@ -40,8 +47,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 // 🔥 Fungsi untuk generate forecast data
-const generateForecastData = (currentAqi) => {
-  const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const generateForecastData = (currentAqi, dayNames) => {
+  const days = dayNames || ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
   const today = new Date().getDay();
   const result = [];
   const variations = [0, 5, -8, 12, -5, 15, -10];
@@ -60,56 +67,73 @@ const generateForecastData = (currentAqi) => {
   return result;
 };
 
+// 🔑 GENERATE DUMMY DATA (Fallback)
+const getDummyPollutionData = (lat, lon) => {
+  return {
+    aqi: Math.floor(Math.random() * 60) + 20,
+    idx: 12345,
+    city: 'Lokasi Anda',
+    cityGeo: [lat, lon],
+    time: new Date().toISOString(),
+    components: {
+      pm2_5: Math.floor(Math.random() * 30) + 5,
+      pm10: Math.floor(Math.random() * 50) + 10,
+      o3: Math.floor(Math.random() * 30) + 5,
+      no2: Math.floor(Math.random() * 20) + 2,
+    },
+    temperature: Math.floor(Math.random() * 15) + 20,
+    humidity: Math.floor(Math.random() * 40) + 50,
+    pressure: 1013,
+  };
+};
+
 // 🔑 GENERATE NOTIFICATIONS
-const generateNotifications = (aqi, cityName) => {
+const generateNotifications = (aqi, cityName, t) => {
   const notifications = [];
 
-  // Notifikasi berdasarkan AQI
   if (aqi > 150) {
     notifications.push({
       id: '1',
-      title: '⚠️ Peringatan Polusi Tinggi!',
-      message: `Kualitas udara di ${cityName} mencapai ${aqi} AQI (Tidak Sehat). Hindari aktivitas luar ruangan dan gunakan masker N95.`,
-      time: 'Sekarang',
+      title: t('notif_pollution_high_title'),
+      message: t('notif_pollution_high_msg')(cityName, aqi),
+      time: t('notif_time_now'),
       type: 'danger',
       icon: 'warning',
     });
   } else if (aqi > 100) {
     notifications.push({
       id: '2',
-      title: '🌿 Kualitas Udara Sedang',
-      message: `AQI ${aqi} di ${cityName}. Kelompok sensitif disarankan memakai masker saat beraktivitas.`,
-      time: 'Sekarang',
+      title: t('notif_pollution_moderate_title'),
+      message: t('notif_pollution_moderate_msg')(cityName, aqi),
+      time: t('notif_time_now'),
       type: 'warning',
       icon: 'info',
     });
   } else {
     notifications.push({
       id: '3',
-      title: '✅ Kualitas Udara Baik',
-      message: `AQI ${aqi} di ${cityName}. Udara bersih, aman untuk beraktivitas di luar.`,
-      time: 'Sekarang',
+      title: t('notif_pollution_good_title'),
+      message: t('notif_pollution_good_msg')(cityName, aqi),
+      time: t('notif_time_now'),
       type: 'success',
       icon: 'check',
     });
   }
 
-  // Notifikasi rekomendasi
   notifications.push({
     id: '4',
-    title: '💡 Tips Hari Ini',
-    message: 'Gunakan transportasi umum atau sepeda untuk mengurangi emisi karbon.',
-    time: '1 jam lalu',
+    title: t('notif_tip_title'),
+    message: t('notif_tip_msg'),
+    time: t('notif_time_1h'),
     type: 'info',
     icon: 'lightbulb-outline',
   });
 
-  // Notifikasi komunitas
   notifications.push({
     id: '5',
-    title: '📢 Laporan Komunitas',
-    message: 'Ada 3 laporan baru dari warga sekitar tentang polusi asap pabrik.',
-    time: '2 jam lalu',
+    title: t('notif_community_title'),
+    message: t('notif_community_msg'),
+    time: t('notif_time_2h'),
     type: 'info',
     icon: 'people',
   });
@@ -118,10 +142,11 @@ const generateNotifications = (aqi, cityName) => {
 };
 
 export default function HomeScreen({ profileData, onLogout, onTabPress }) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pollutionData, setPollutionData] = useState(null);
-  const [cityName, setCityName] = useState('Mendapatkan lokasi...');
+  const [cityName, setCityName] = useState(null);
   const [forecastData, setForecastData] = useState([]);
   const [forecastLoading, setForecastLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -164,10 +189,38 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
+
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        let loc;
+        try {
+          loc = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('GPS Timeout')), 8000)
+            )
+          ]);
+        } catch (locationError) {
+          console.log('⚠️ Location timeout, using cache...');
+          const cachedData = await AsyncStorage.getItem('lastPollution');
+          if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            if (parsed?.aqi) {
+              setPollutionData(parsed);
+              setHasCachedData(true);
+              const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+              const forecast = generateForecastData(parsed.aqi || 50, dayNames);
+              setForecastData(forecast);
+              setForecastLoading(false);
+              setLoading(false);
+              if (parsed.city) {
+                setCityName(parsed.city.replace(/, Indonesia$/, ''));
+              }
+              isFetching.current = false;
+              return;
+            }
+          }
+          throw new Error('Unable to get location');
+        }
 
         const { latitude, longitude } = loc.coords;
         const city = await getCityNameFromCoords(latitude, longitude);
@@ -195,24 +248,60 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
         if (useCache && cachedPollution) {
           setPollutionData(cachedPollution);
           setHasCachedData(true);
-          const forecast = generateForecastData(cachedPollution.aqi || 50);
+          const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+          const forecast = generateForecastData(cachedPollution.aqi || 50, dayNames);
           setForecastData(forecast);
           setForecastLoading(false);
           setLoading(false);
         }
 
-        const data = await fetchWAQIPollution(latitude, longitude);
-        if (data) {
-          const newData = { ...data, latitude, longitude };
-          setPollutionData(newData);
-          const forecast = generateForecastData(data.aqi || 50);
-          setForecastData(forecast);
-          await AsyncStorage.setItem('lastPollution', JSON.stringify(newData));
+        try {
+          const data = await Promise.race([
+            fetchWAQIPollution(latitude, longitude),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('API Timeout')), 15000)
+            )
+          ]);
 
-          // 🔑 GENERATE NOTIFICATIONS
-          const notifs = generateNotifications(data.aqi || 50, city);
-          setNotifications(notifs);
-          setUnreadCount(notifs.length);
+          if (data && data.aqi) {
+            const newData = { ...data, latitude, longitude };
+            setPollutionData(newData);
+            const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+            const forecast = generateForecastData(data.aqi || 50, dayNames);
+            setForecastData(forecast);
+            await AsyncStorage.setItem('lastPollution', JSON.stringify(newData));
+
+            const notifs = generateNotifications(data.aqi || 50, city, t);
+            setNotifications(notifs);
+            setUnreadCount(notifs.length);
+            setHasCachedData(false);
+            setLoading(false);
+            setError(null);
+          } else {
+            console.log('⚠️ WAQI API returned null, using dummy data');
+            const dummyData = getDummyPollutionData(latitude, longitude);
+            const dummyWithLocation = { ...dummyData, latitude, longitude };
+            setPollutionData(dummyWithLocation);
+            const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+            const forecast = generateForecastData(dummyData.aqi || 50, dayNames);
+            setForecastData(forecast);
+            setLoading(false);
+            setError('Menampilkan data simulasi (WAQI tidak tersedia)');
+          }
+        } catch (apiError) {
+          console.log('⚠️ API fetch failed:', apiError);
+
+          if (!pollutionData) {
+            const dummyData = getDummyPollutionData(latitude, longitude);
+            const dummyWithLocation = { ...dummyData, latitude, longitude };
+            setPollutionData(dummyWithLocation);
+            const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+            const forecast = generateForecastData(dummyData.aqi || 50, dayNames);
+            setForecastData(forecast);
+            setForecastLoading(false);
+            setLoading(false);
+            setError('Menampilkan data simulasi (koneksi ke server gagal)');
+          }
         }
 
       } else {
@@ -222,23 +311,36 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
           if (parsed?.aqi) {
             setPollutionData(parsed);
             setHasCachedData(true);
-            const forecast = generateForecastData(parsed.aqi || 50);
+            const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+            const forecast = generateForecastData(parsed.aqi || 50, dayNames);
             setForecastData(forecast);
             setForecastLoading(false);
+            setLoading(false);
             if (parsed.city) {
               setCityName(parsed.city.replace(/, Indonesia$/, ''));
             }
+          } else {
+            setError(t('home_location_permission_required'));
           }
         } else {
-          setError('Izin lokasi diperlukan');
+          setError(t('home_location_permission_required'));
         }
       }
 
     } catch (error) {
       console.error('Error loading data:', error);
-      if (!hasCachedData) {
-        setError('Gagal memuat data. Periksa koneksi internet.');
+
+      if (!pollutionData) {
+        const dummyData = getDummyPollutionData(-6.2088, 106.8456);
+        setPollutionData(dummyData);
+        const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+        const forecast = generateForecastData(dummyData.aqi || 50, dayNames);
+        setForecastData(forecast);
+        setForecastLoading(false);
+        setLoading(false);
+        setError('Menampilkan data simulasi (terjadi kesalahan)');
       }
+
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -290,17 +392,27 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
         setCityName(city);
 
         const data = await fetchWAQIPollution(latitude, longitude);
-        if (data) {
+        if (data && data.aqi) {
           const newData = { ...data, latitude, longitude };
           setPollutionData(newData);
-          const forecast = generateForecastData(data.aqi || 50);
+          const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+          const forecast = generateForecastData(data.aqi || 50, dayNames);
           setForecastData(forecast);
           await AsyncStorage.setItem('lastPollution', JSON.stringify(newData));
 
-          // 🔑 UPDATE NOTIFICATIONS
-          const notifs = generateNotifications(data.aqi || 50, city);
+          const notifs = generateNotifications(data.aqi || 50, city, t);
           setNotifications(notifs);
           setUnreadCount(notifs.length);
+          setError(null);
+        } else {
+          // Fallback dummy
+          const dummyData = getDummyPollutionData(latitude, longitude);
+          const dummyWithLocation = { ...dummyData, latitude, longitude };
+          setPollutionData(dummyWithLocation);
+          const dayNames = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')];
+          const forecast = generateForecastData(dummyData.aqi || 50, dayNames);
+          setForecastData(forecast);
+          setError('Menampilkan data simulasi');
         }
       }
     } catch (error) {
@@ -331,7 +443,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
     };
 
     const getIconName = () => {
-      return item.icon || 'bell';
+      return item.icon || 'notifications';
     };
 
     return (
@@ -353,8 +465,8 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Memuat data kualitas udara...</Text>
-          <Text style={styles.loadingSubtext}>Mengambil lokasi Anda</Text>
+          <Text style={styles.loadingText}>{t('home_loading_title')}</Text>
+          <Text style={styles.loadingSubtext}>{t('home_loading_subtitle')}</Text>
         </View>
         <BottomTab activeTab="home" onTabPress={onTabPress} />
       </SafeAreaView>
@@ -368,7 +480,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
           <MaterialIcons name="warning" size={48} color="#DC2626" />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadData}>
-            <Text style={styles.retryButtonText}>Coba Lagi</Text>
+            <Text style={styles.retryButtonText}>{t('retry')}</Text>
           </TouchableOpacity>
         </View>
         <BottomTab activeTab="home" onTabPress={onTabPress} />
@@ -377,7 +489,8 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
   }
 
   const aqi = pollutionData?.aqi || 0;
-  const aqiLabel = getWAQILabel(aqi);
+  // ✅ FIX: Tambah parameter t
+  const aqiLabel = getWAQILabel(aqi, t);
   const aqiColor = getWAQIColor(aqi);
   const pm25 = pollutionData?.components?.pm2_5 || 0;
   const pm10 = pollutionData?.components?.pm10 || 0;
@@ -386,11 +499,11 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
   const humidity = pollutionData?.humidity || 0;
 
   const statusText = (() => {
-    if (aqi <= 50) return 'Baik';
-    if (aqi <= 100) return 'Sedang';
-    if (aqi <= 150) return 'Tidak Sehat';
-    if (aqi <= 200) return 'Buruk';
-    return 'Sangat Buruk';
+    if (aqi <= 50) return t('aqi_good');
+    if (aqi <= 100) return t('aqi_moderate');
+    if (aqi <= 150) return t('aqi_unhealthy');
+    if (aqi <= 200) return t('aqi_bad');
+    return t('aqi_very_bad');
   })();
 
   const statusColor = (() => {
@@ -401,22 +514,32 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
     return '#8B5CF6';
   })();
 
+  // ✅ FIX: Tambah parameter t
   const getRecommendation = (aqi) => {
-    if (aqi <= 50) return 'Udara bersih, aman untuk beraktivitas di luar.';
-    if (aqi <= 100) return 'Kualitas udara masih dapat diterima. Kelompok sensitif disarankan memakai masker.';
-    if (aqi <= 150) return 'Gunakan masker N95 jika beraktivitas di luar ruangan.';
-    if (aqi <= 200) return 'Hindari aktivitas luar ruangan. Gunakan masker N95.';
-    return 'Kondisi udara berbahaya. Tetap di dalam ruangan.';
+    return getWAQIRecommendation(aqi, t);
+  };
+
+  // 🔑 Jika error tapi ada data (dummy/cache), tampilkan error banner di atas
+  const renderErrorBanner = () => {
+    if (!error) return null;
+    return (
+      <View style={styles.errorBanner}>
+        <MaterialIcons name="info" size={16} color="#F59E0B" />
+        <Text style={styles.errorBannerText}>{error}</Text>
+      </View>
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderErrorBanner()}
+
       <View style={styles.header}>
         <View>
-          <Text style={styles.lokasiLabel}>Lokasi aktif</Text>
+          <Text style={styles.lokasiLabel}>{t('home_active_location')}</Text>
           <TouchableOpacity style={styles.lokasiSelector}>
             <MaterialIcons name="location-on" size={18} color={colors.primary} style={styles.pinIcon} />
-            <Text style={styles.lokasiText}>{cityName}</Text>
+            <Text style={styles.lokasiText}>{cityName || t('home_getting_location')}</Text>
             {hasCachedData && (
               <Text style={styles.cacheBadge}>📡</Text>
             )}
@@ -424,7 +547,6 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
         </View>
 
         <View style={styles.headerRight}>
-          {/* 🔑 NOTIFICATION BUTTON - BUKA MODAL */}
           <TouchableOpacity style={styles.notificationBtn} onPress={openNotifModal}>
             <MaterialIcons name="notifications" size={24} color={colors.textDark} />
             {unreadCount > 0 && (
@@ -472,11 +594,11 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
             />
             <View style={styles.aqiInfoContainer}>
               <Text style={styles.aqiInfoTitle}>
-                {aqi <= 50 ? 'Layak beraktivitas' :
-                  aqi <= 100 ? 'Aman untuk umum' :
-                    aqi <= 150 ? 'Kurangi aktivitas luar' :
-                      aqi <= 200 ? 'Hindari luar ruangan' :
-                        'Tetap di dalam ruangan'}
+                {aqi <= 50 ? t('aqi_rec_good_title') :
+                  aqi <= 100 ? t('aqi_rec_moderate_title') :
+                    aqi <= 150 ? t('aqi_rec_unhealthy_title') :
+                      aqi <= 200 ? t('aqi_rec_bad_title') :
+                        t('aqi_rec_very_bad_title')}
               </Text>
               <Text style={styles.aqiInfoDesc}>
                 {getRecommendation(aqi)}
@@ -520,7 +642,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
         <View style={styles.forecastCard}>
           <View style={styles.forecastHeader}>
             <View style={styles.forecastHeaderLeft}>
-              <Text style={styles.forecastTitle}>PRAKIRAAN 7 HARI</Text>
+              <Text style={styles.forecastTitle}>{t('home_forecast_title')}</Text>
               <MaterialIcons name="info" size={14} color={colors.textGray} style={styles.forecastInfoIcon} />
             </View>
           </View>
@@ -533,7 +655,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
         {pollutionData?.time && (
           <Text style={styles.updateTime}>
             <MaterialIcons name="access-time" size={12} color={colors.textGray} />
-            Terakhir diperbarui: {new Date(pollutionData.time).toLocaleString('id-ID')}
+            {t('home_last_updated')}: {new Date(pollutionData.time).toLocaleString('id-ID')}
           </Text>
         )}
       </ScrollView>
@@ -563,7 +685,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
             >
               {/* Modal Header */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>🔔 Notifikasi</Text>
+                <Text style={styles.modalTitle}>{t('home_notification_title')}</Text>
                 <TouchableOpacity onPress={closeNotifModal} style={styles.modalCloseBtn}>
                   <MaterialIcons name="close" size={24} color={colors.textDark} />
                 </TouchableOpacity>
@@ -573,7 +695,7 @@ export default function HomeScreen({ profileData, onLogout, onTabPress }) {
               {notifications.length === 0 ? (
                 <View style={styles.emptyNotif}>
                   <MaterialIcons name="notifications-off" size={48} color={colors.textGray} />
-                  <Text style={styles.emptyNotifText}>Tidak ada notifikasi</Text>
+                  <Text style={styles.emptyNotifText}>{t('home_no_notifications')}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -639,6 +761,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCD34D',
+    gap: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400E',
   },
   header: {
     flexDirection: 'row',
@@ -734,7 +871,7 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: -8,
+    marginBottom: 2,
     zIndex: 10,
   },
   aqiStatusBadge: {

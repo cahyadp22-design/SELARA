@@ -20,14 +20,17 @@ import { colors } from '../theme/colors';
 import BottomTab from '../components/BottomTab';
 import { supabase } from '../config/supabase';
 import { File } from 'expo-file-system'; // 🔑 IMPORT SAMA
+import { useLanguage } from '../i18n/i18n';
 
 export default function EditProfileScreen({ profileData, onSubmit, onBack, onTabPress }) {
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState(profileData.fullName || '');
   const [displayName, setDisplayName] = useState(profileData.displayName || '');
   const [birthday, setBirthday] = useState(profileData.birthday || '');
   const [email, setEmail] = useState(profileData.email || '');
   const [phone, setPhone] = useState(profileData.phone || '');
   const [photoUri, setPhotoUri] = useState(profileData.photoUri || null);
+
   const [isUploading, setIsUploading] = useState(false);
 
   const uploadAvatar = async (uri) => {
@@ -94,8 +97,8 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
 
     if (status !== 'granted') {
       Alert.alert(
-        "Izin Galeri Ditolak",
-        "Mohon izinkan akses galeri untuk mengganti foto profil.",
+        t('edit_profile_gallery_denied_title'),
+        t('edit_profile_gallery_denied_desc'),
         [{ text: "OK" }]
       );
       return;
@@ -113,7 +116,7 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
       }
     } catch (error) {
       console.log('Error picking image:', error);
-      Alert.alert("Error", "Gagal memilih gambar dari galeri.");
+      Alert.alert("Error", t('edit_profile_gallery_error'));
     }
   };
 
@@ -123,8 +126,8 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
 
     if (status !== 'granted') {
       Alert.alert(
-        "Izin Kamera Ditolak",
-        "Mohon izinkan akses kamera untuk mengambil foto profil.",
+        t('edit_profile_camera_denied_title'),
+        t('edit_profile_camera_denied_desc'),
         [{ text: "OK" }]
       );
       return;
@@ -142,19 +145,19 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
       }
     } catch (error) {
       console.log('Error taking photo:', error);
-      Alert.alert("Error", "Gagal membuka kamera.");
+      Alert.alert("Error", t('edit_profile_camera_error'));
     }
   };
 
   // 🔑 TAMPILKAN OPSI PILIH GAMBAR
   const handlePhotoPress = () => {
     Alert.alert(
-      "Ganti Foto Profil",
-      "Pilih sumber foto",
+      t('edit_profile_photo_title'),
+      t('edit_profile_photo_desc'),
       [
-        { text: "Galeri", onPress: pickImageFromGallery },
-        { text: "Kamera", onPress: takePhoto },
-        { text: "Batal", style: "cancel" }
+        { text: t('edit_profile_gallery'), onPress: pickImageFromGallery },
+        { text: t('edit_profile_camera'), onPress: takePhoto },
+        { text: t('cancel'), style: "cancel" }
       ]
     );
   };
@@ -162,7 +165,7 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
   // 🔑 HANDLE SAVE - Upload avatar jika ada perubahan
   const handleSave = async () => {
     if (!fullName.trim()) {
-      Alert.alert("Validasi Gagal", "Nama lengkap tidak boleh kosong.");
+      Alert.alert(t('edit_profile_validation_failed'), t('edit_profile_fullname_empty'));
       return;
     }
 
@@ -179,11 +182,11 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
         } else {
           // Jika upload gagal, tetap pakai foto lokal
           finalPhotoUri = photoUri;
-          Alert.alert('Peringatan', 'Foto gagal diupload, tapi perubahan lain tetap disimpan.');
+          Alert.alert(t('edit_profile_warning'), t('edit_profile_upload_failed_warning'));
         }
       } catch (error) {
         console.log('❌ Upload error:', error);
-        Alert.alert('Error', `Gagal mengupload foto: ${error.message || 'Silakan coba lagi'}`);
+        Alert.alert('Error', t('edit_profile_upload_error')(error.message || ''));
         setIsUploading(false);
         return;
       } finally {
@@ -225,7 +228,7 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
               <MaterialIcons name="arrow-back" size={24} color={colors.textDark} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Edit Profil</Text>
+            <Text style={styles.headerTitle}>{t('edit_profile_title')}</Text>
           </View>
           <TouchableOpacity
             style={[styles.saveBtn, isUploading && styles.saveBtnDisabled]}
@@ -235,7 +238,7 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             {isUploading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={styles.saveBtnText}>SELESAI</Text>
+              <Text style={styles.saveBtnText}>{t('edit_profile_save')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -263,25 +266,25 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handlePhotoPress} disabled={isUploading}>
-              <Text style={styles.changePhotoText}>Ganti foto profil</Text>
+              <Text style={styles.changePhotoText}>{t('edit_profile_change_photo')}</Text>
             </TouchableOpacity>
 
             {isUploading && (
-              <Text style={styles.uploadingText}>Mengupload foto...</Text>
+              <Text style={styles.uploadingText}>{t('edit_profile_uploading_photo')}</Text>
             )}
           </View>
 
           {/* Section: Info Pribadi */}
-          <Text style={styles.sectionTitle}>INFO PRIBADI</Text>
+          <Text style={styles.sectionTitle}>{t('edit_profile_personal_info')}</Text>
           <View style={styles.card}>
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Nama lengkap</Text>
+              <Text style={styles.inputLabel}>{t('edit_profile_fullname')}</Text>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.textInput}
                   value={fullName}
                   onChangeText={setFullName}
-                  placeholder="Nama lengkap"
+                  placeholder={t('edit_profile_fullname')}
                   editable={!isUploading}
                 />
                 <MaterialIcons name="edit" size={16} color={colors.textGray} />
@@ -289,13 +292,13 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Nama tampilan</Text>
+              <Text style={styles.inputLabel}>{t('edit_profile_display_name')}</Text>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.textInput}
                   value={displayName}
                   onChangeText={setDisplayName}
-                  placeholder="Nama tampilan"
+                  placeholder={t('edit_profile_display_name')}
                   editable={!isUploading}
                 />
                 <MaterialIcons name="edit" size={16} color={colors.textGray} />
@@ -303,13 +306,13 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             </View>
 
             <View style={[styles.inputWrapper, { borderBottomWidth: 0 }]}>
-              <Text style={styles.inputLabel}>Tanggal lahir</Text>
+              <Text style={styles.inputLabel}>{t('edit_profile_birthday')}</Text>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.textInput}
                   value={birthday}
                   onChangeText={setBirthday}
-                  placeholder="Belum diisi"
+                  placeholder={t('edit_profile_not_filled')}
                   placeholderTextColor={colors.textGray}
                   editable={!isUploading}
                 />
@@ -319,7 +322,7 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
           </View>
 
           {/* Section: Kontak */}
-          <Text style={styles.sectionTitle}>KONTAK</Text>
+          <Text style={styles.sectionTitle}>{t('edit_profile_contact')}</Text>
           <View style={styles.card}>
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>Email</Text>
@@ -338,13 +341,13 @@ export default function EditProfileScreen({ profileData, onSubmit, onBack, onTab
             </View>
 
             <View style={[styles.inputWrapper, { borderBottomWidth: 0 }]}>
-              <Text style={styles.inputLabel}>Nomor HP</Text>
+              <Text style={styles.inputLabel}>{t('edit_profile_phone')}</Text>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.textInput}
                   value={phone}
                   onChangeText={setPhone}
-                  placeholder="Belum diisi"
+                  placeholder={t('edit_profile_not_filled')}
                   placeholderTextColor={colors.textGray}
                   keyboardType="phone-pad"
                   editable={!isUploading}

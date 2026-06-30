@@ -1,3 +1,4 @@
+// lib/waqiApi.js
 import Constants from 'expo-constants';
 
 const WAQI_TOKEN =
@@ -20,7 +21,6 @@ export const fetchWAQIPollution = async (lat, lon) => {
 
     if (data.status === 'ok' && data.data) {
       const iaqi = data.data.iaqi || {};
-
 
       return {
         aqi: data.data.aqi,
@@ -85,28 +85,29 @@ export const getWAQIColor = (aqi) => {
   return '#8f3f97';
 };
 
-export const getWAQILabel = (aqi) => {
-  if (!aqi || aqi <= 0) return 'Tidak Diketahui';
-  if (aqi <= 50) return 'Baik';
-  if (aqi <= 100) return 'Sedang';
-  if (aqi <= 150) return 'Tidak Sehat';
-  if (aqi <= 200) return 'Buruk';
-  return 'Sangat Buruk';
+export const getWAQILabel = (aqi, t) => {
+  if (!aqi || aqi <= 0) return t('waqi_unknown');
+  if (aqi <= 50) return t('waqi_good');
+  if (aqi <= 100) return t('waqi_moderate');
+  if (aqi <= 150) return t('waqi_unhealthy');
+  if (aqi <= 200) return t('waqi_bad');
+  return t('waqi_very_bad');
 };
 
-export const getWAQIRecommendation = (aqi) => {
-  if (!aqi || aqi <= 0) return 'Data tidak tersedia';
-  if (aqi <= 50) return 'Udara dalam kondisi baik, aman untuk beraktivitas di luar ruangan.';
-  if (aqi <= 100) return 'Kualitas udara masih dapat diterima, namun kelompok sensitif disarankan mengurangi aktivitas luar.';
-  if (aqi <= 150) return 'Kelompok sensitif seperti anak-anak, lansia, dan penderita asma disarankan mengurangi aktivitas di luar.';
-  if (aqi <= 200) return 'Hindari aktivitas luar ruangan. Gunakan masker N95 jika harus keluar.';
-  return 'Kondisi udara berbahaya. Hindari keluar rumah dan gunakan alat pembersih udara di dalam ruangan.';
+export const getWAQIRecommendation = (aqi, t) => {
+  if (!aqi || aqi <= 0) return t('waqi_data_unavailable');
+  if (aqi <= 50) return t('waqi_rec_good');
+  if (aqi <= 100) return t('waqi_rec_moderate');
+  if (aqi <= 150) return t('waqi_rec_unhealthy');
+  if (aqi <= 200) return t('waqi_rec_bad');
+  return t('waqi_rec_very_bad');
 };
 
-export const getAreaDescription = (aqi) => {
-  if (aqi <= 50) return 'Area dengan kualitas udara baik.';
-  if (aqi <= 100) return 'Area dengan kualitas udara sedang.';
-  if (aqi <= 150) return 'Area terdampak polusi tingkat sedang.';
-  if (aqi <= 200) return 'Area terdampak polusi tingkat tinggi.';
-  return 'Area terdampak polusi tingkat sangat tinggi.';
+export const getAreaDescription = (aqi, t) => {
+  if (!aqi || aqi <= 0) return t('waqi_data_unavailable');
+  if (aqi <= 50) return t('waqi_area_good');
+  if (aqi <= 100) return t('waqi_area_moderate');
+  if (aqi <= 150) return t('waqi_area_unhealthy');
+  if (aqi <= 200) return t('waqi_area_bad');
+  return t('waqi_area_very_bad');
 };

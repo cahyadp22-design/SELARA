@@ -21,6 +21,7 @@ import { colors } from '../theme/colors';
 import BottomTab from '../components/BottomTab';
 import { getWAQIColor, getWAQILabel } from '../lib/waqiApi';
 import { generateFullRoute } from '../lib/routeApi';
+import { useLanguage } from '../i18n/i18n';
 
 const { width, height } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = height * 0.6;
@@ -57,18 +58,19 @@ const getCityName = (lat, lon) => {
 };
 
 export default function RouteScreen({ onTabPress, onBack }) {
+  const { t } = useLanguage();
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
   const [routeData, setRouteData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [originAddress, setOriginAddress] = useState('Mendapatkan lokasi...');
-  const [destinationAddress, setDestinationAddress] = useState('Pilih tujuan');
+  const [originAddress, setOriginAddress] = useState(t('route_origin_placeholder'));
+  const [destinationAddress, setDestinationAddress] = useState(t('route_dest_placeholder'));
   const [mapRegion, setMapRegion] = useState(null);
   const [isSelectingDestination, setIsSelectingDestination] = useState(false);
   const [apiError, setApiError] = useState(null);
   const mapRef = useRef(null);
-  
+
   const [bottomSheetHeight, setBottomSheetHeight] = useState(BOTTOM_SHEET_MIN_HEIGHT);
   const [isExpanded, setIsExpanded] = useState(false);
   const animatedHeight = useRef(new Animated.Value(BOTTOM_SHEET_MIN_HEIGHT)).current;
@@ -104,8 +106,8 @@ export default function RouteScreen({ onTabPress, onBack }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Izin Lokasi', 'Aktifkan izin lokasi untuk fitur ini');
-        setOriginAddress('Lokasi tidak diketahui');
+        Alert.alert(t('route_permission_title'), t('route_permission_msg'));
+        setOriginAddress(t('route_unknown_loc'));
         setLoading(false);
         return;
       }
@@ -113,7 +115,7 @@ export default function RouteScreen({ onTabPress, onBack }) {
       const loc = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = loc.coords;
       setOrigin({ lat: latitude, lon: longitude });
-      
+
       const cityName = getCityName(latitude, longitude);
       setOriginAddress(cityName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
 
@@ -138,20 +140,20 @@ export default function RouteScreen({ onTabPress, onBack }) {
 
   const handleMapPress = async (event) => {
     if (!isSelectingDestination) return;
-    
+
     const { coordinate } = event.nativeEvent;
     const dest = {
       lat: coordinate.latitude,
       lon: coordinate.longitude,
     };
     setDestination(dest);
-    
+
     const cityName = getCityName(coordinate.latitude, coordinate.longitude);
     setDestinationAddress(cityName || `${coordinate.latitude.toFixed(4)}, ${coordinate.longitude.toFixed(4)}`);
-    
+
     setIsSelectingDestination(false);
     setApiError(null);
-    
+
     if (origin) {
       await calculateRoute(origin.lat, origin.lon, dest.lat, dest.lon);
     }
@@ -161,11 +163,11 @@ export default function RouteScreen({ onTabPress, onBack }) {
     const { latitude, longitude } = e.nativeEvent.coordinate;
     const dest = { lat: latitude, lon: longitude };
     setDestination(dest);
-    
+
     const cityName = getCityName(latitude, longitude);
     setDestinationAddress(cityName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
     setApiError(null);
-    
+
     if (origin) {
       await calculateRoute(origin.lat, origin.lon, dest.lat, dest.lon);
     }
@@ -174,45 +176,45 @@ export default function RouteScreen({ onTabPress, onBack }) {
   const calculateRoute = async (originLat, originLon, destLat, destLon) => {
     setIsCalculating(true);
     setApiError(null);
-    
+
     try {
       const result = await generateFullRoute(originLat, originLon, destLat, destLon);
       if (result.isOffline) {
-        setApiError('Data rute estimasi, server tidak merespons.');
+        setApiError(t('route_offline_error'));
       }
       setRouteData(result);
       expandBottomSheet();
     } catch (error) {
       console.error('Error:', error);
-      Alert.alert('Error', 'Gagal menghitung rute.');
+      Alert.alert(t('common_error'), t('route_calc_error'));
     } finally {
       setIsCalculating(false);
     }
   };
 
-  const resetDestination = () => {
+  const handleReset = () => {
     setDestination(null);
-    setDestinationAddress('Pilih tujuan');
+    setDestinationAddress(t('route_dest_placeholder'));
     setRouteData(null);
+    setIsSelectingDestination(false);
     setApiError(null);
     collapseBottomSheet();
-    setIsSelectingDestination(true);
   };
 
   const openGoogleMaps = async () => {
     if (!origin || !destination) {
-      Alert.alert('Info', 'Pilih tujuan terlebih dahulu');
+      Alert.alert(t('common_info'), t('route_select_dest_first'));
       return;
     }
 
     try {
       const url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lon}&destination=${destination.lat},${destination.lon}&travelmode=driving`;
-      
+
       if (Platform.OS === 'android') {
         await Linking.openURL(url);
         return;
       }
-      
+
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);
@@ -227,8 +229,8 @@ export default function RouteScreen({ onTabPress, onBack }) {
         await Linking.openURL(fallbackUrl);
       } catch (e) {
         Alert.alert(
-          'Tidak Dapat Membuka Maps',
-          'Pastikan Google Maps terinstall atau koneksi internet aktif.',
+          t('route_cannot_open_maps'),
+          t('route_cannot_open_maps_desc'),
           [{ text: 'OK' }]
         );
       }
@@ -236,25 +238,26 @@ export default function RouteScreen({ onTabPress, onBack }) {
   };
 
   const getRecommendation = (aqi) => {
-    if (aqi <= 50) return 'Kualitas udara baik. Perjalanan aman.';
-    if (aqi <= 100) return 'Kualitas udara sedang. Kelompok sensitif disarankan menggunakan masker.';
-    if (aqi <= 150) return 'Kualitas udara tidak sehat. Gunakan masker selama perjalanan.';
-    return 'Kualitas udara sangat tidak sehat. Hindari perjalanan jika tidak penting.';
+    if (aqi <= 50) return t('route_rec_good');
+    if (aqi <= 100) return t('route_rec_moderate');
+    if (aqi <= 150) return t('route_rec_unhealthy');
+    return t('route_rec_very_bad');
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Mendapatkan lokasi...</Text>
-        <Text style={styles.loadingSubtext}>Pastikan GPS aktif</Text>
+        <Text style={styles.loadingText}>{t('route_origin_placeholder')}</Text>
+        <Text style={styles.loadingSubtext}>{t('route_gps_active')}</Text>
       </SafeAreaView>
     );
   }
 
   const aqi = routeData?.aqi?.avgAqi || 50;
   const aqiColor = getWAQIColor(aqi);
-  const aqiLabel = getWAQILabel(aqi);
+  // ✅ FIX: Tambah parameter t
+  const aqiLabel = getWAQILabel(aqi, t);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -262,14 +265,14 @@ export default function RouteScreen({ onTabPress, onBack }) {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <MaterialIcons name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Rute Perjalanan</Text>
-        <TouchableOpacity 
+        <Text style={styles.headerTitle}>{t('route_title')}</Text>
+        <TouchableOpacity
           style={[styles.selectButton, isSelectingDestination && styles.selectButtonActive]}
           onPress={startSelectingDestination}
         >
           <MaterialIcons name="place" size={18} color={isSelectingDestination ? '#FFFFFF' : colors.primary} />
           <Text style={[styles.selectButtonText, isSelectingDestination && styles.selectButtonTextActive]}>
-            {isSelectingDestination ? 'Sedang memilih...' : 'Pilih Tujuan'}
+            {isSelectingDestination ? t('route_selecting') : t('route_dest_placeholder')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -283,7 +286,7 @@ export default function RouteScreen({ onTabPress, onBack }) {
           onPress={handleMapPress}
         >
           {origin && (
-            <Marker coordinate={{ latitude: origin.lat, longitude: origin.lon }} title="Lokasi Anda">
+            <Marker coordinate={{ latitude: origin.lat, longitude: origin.lon }} title={t('route_marker_you')}>
               <View style={styles.originMarker} />
             </Marker>
           )}
@@ -291,7 +294,7 @@ export default function RouteScreen({ onTabPress, onBack }) {
           {destination && (
             <Marker
               coordinate={{ latitude: destination.lat, longitude: destination.lon }}
-              title="Tujuan"
+              title={t('route_marker_dest')}
               draggable
               onDragEnd={handleMarkerDrag}
             >
@@ -326,11 +329,11 @@ export default function RouteScreen({ onTabPress, onBack }) {
             <View style={styles.selectOverlayLeft}>
               <MaterialIcons name="place" size={16} color="#FFFFFF" />
               <Text style={styles.selectText}>
-                {destination ? 'Ketuk peta untuk ubah tujuan' : 'Ketuk peta untuk pilih tujuan'}
+                {destination ? t('route_hint_tap_change') : t('route_hint_tap')}
               </Text>
             </View>
             <TouchableOpacity style={styles.cancelSelectButton} onPress={() => setIsSelectingDestination(false)}>
-              <Text style={styles.cancelSelectText}>Batal</Text>
+              <Text style={styles.cancelSelectText}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -344,59 +347,59 @@ export default function RouteScreen({ onTabPress, onBack }) {
       </View>
 
       {/* Bottom Sheet - Tanpa PanResponder */}
-      <Animated.View 
+      <Animated.View
         style={[styles.bottomSheet, { height: animatedHeight }]}
       >
         {/* Handle - Klik untuk expand/collapse */}
-        <TouchableOpacity 
-          style={styles.sheetHandleContainer} 
+        <TouchableOpacity
+          style={styles.sheetHandleContainer}
           onPress={toggleBottomSheet}
           activeOpacity={0.7}
         >
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetHandleText}>
-            {isExpanded ? '⬇️ Klik untuk tutup' : '⬆️ Klik untuk detail rute'}
+            {isExpanded ? t('route_sheet_close') : t('route_sheet_open')}
           </Text>
         </TouchableOpacity>
 
         {/* Konten - Tanpa PanResponder */}
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.sheetContent}
         >
           <View style={styles.locationCard}>
             <View style={styles.locationItem}>
               <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-              <Text style={styles.locationLabel}>Dari</Text>
+              <Text style={styles.locationLabel}>{t('route_from')}</Text>
               <Text style={styles.locationText} numberOfLines={1}>{originAddress}</Text>
             </View>
             <View style={styles.locationArrow}>
               <MaterialIcons name="arrow-downward" size={14} color={colors.textGray} />
             </View>
-            <TouchableOpacity 
-              style={styles.locationItem} 
-              onPress={resetDestination}
+            <TouchableOpacity
+              style={styles.locationItem}
+              onPress={handleReset}
             >
               <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={styles.locationLabel}>Ke</Text>
+              <Text style={styles.locationLabel}>{t('route_to')}</Text>
               <Text style={[styles.locationText, { color: destination ? colors.textDark : colors.textGray }]} numberOfLines={1}>
                 {destinationAddress}
               </Text>
               {destination ? (
                 <View style={styles.editBadge}>
                   <MaterialIcons name="edit" size={12} color="#FFFFFF" />
-                  <Text style={styles.editBadgeText}>Ubah</Text>
+                  <Text style={styles.editBadgeText}>{t('route_change')}</Text>
                 </View>
               ) : null}
             </TouchableOpacity>
-            
+
             {!destination && !isCalculating && !isSelectingDestination && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.selectDestHint}
                 onPress={startSelectingDestination}
               >
                 <MaterialIcons name="place" size={14} color={colors.primary} />
-                <Text style={styles.selectDestHintText}>Ketuk "Pilih Tujuan" di atas atau ketuk peta</Text>
+                <Text style={styles.selectDestHintText}>{t('route_hint_bottom')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -417,24 +420,24 @@ export default function RouteScreen({ onTabPress, onBack }) {
                 <View style={styles.detailItem}>
                   <MaterialIcons name="access-time" size={16} color={colors.textGray} />
                   <Text style={styles.detailValue}>{Math.round(routeData.duration)}</Text>
-                  <Text style={styles.detailLabel}>menit</Text>
+                  <Text style={styles.detailLabel}>{t('route_duration')('').replace(/\s*\d+\s*/, '')}</Text>
                 </View>
                 <View style={styles.detailItem}>
                   <MaterialIcons name="map" size={16} color={colors.textGray} />
                   <Text style={styles.detailValue}>{Math.round(routeData.distance)}</Text>
-                  <Text style={styles.detailLabel}>km</Text>
+                  <Text style={styles.detailLabel}>{t('route_distance')('').replace(/\s*\d+\s*/, '')}</Text>
                 </View>
                 <View style={styles.detailItem}>
                   <MaterialIcons name="trending-up" size={16} color={colors.textGray} />
                   <Text style={styles.detailValue}>{routeData.aqi?.maxAqi || 50}</Text>
-                  <Text style={styles.detailLabel}>AQI tertinggi</Text>
+                  <Text style={styles.detailLabel}>{t('route_max_aqi')}</Text>
                 </View>
               </View>
 
               <View style={styles.progressSection}>
-                <Text style={styles.progressLabel}>Kualitas udara sepanjang rute</Text>
+                <Text style={styles.progressLabel}>{t('route_air_quality_track')}</Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { 
+                  <View style={[styles.progressFill, {
                     width: `${Math.min((aqi / 300) * 100, 100)}%`,
                     backgroundColor: aqiColor
                   }]} />
@@ -448,19 +451,19 @@ export default function RouteScreen({ onTabPress, onBack }) {
                 activeOpacity={0.8}
               >
                 <MaterialIcons name="map" size={18} color="#FFFFFF" />
-                <Text style={styles.googleText}>Navigasi dengan Google Maps</Text>
+                <Text style={styles.googleText}>{t('route_google_nav')}</Text>
               </TouchableOpacity>
             </>
           ) : isCalculating ? (
             <View style={styles.calculatingBox}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.calculatingText}>Menghitung rute...</Text>
+              <Text style={styles.calculatingText}>{t('route_calculating')}</Text>
             </View>
           ) : (
             <View style={styles.emptyState}>
               <MaterialIcons name="place" size={36} color={colors.textGray} />
-              <Text style={styles.emptyStateText}>Belum ada tujuan dipilih</Text>
-              <Text style={styles.emptyStateSubtext}>Ketuk tombol "Pilih Tujuan" di pojok kanan atas</Text>
+              <Text style={styles.emptyStateText}>{t('route_not_selected')}</Text>
+              <Text style={styles.emptyStateSubtext}>{t('route_not_selected_desc')}</Text>
             </View>
           )}
         </ScrollView>

@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { supabase } from '../config/supabase';
+import { useLanguage } from '../i18n/i18n';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ export default function DetailReportScreen({
     onAddComment,
     onBack
 }) {
+    const { t } = useLanguage();
     const { reportId } = route.params || {};
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -97,16 +99,16 @@ export default function DetailReportScreen({
     const formatTimeAgo = (date) => {
         const seconds = Math.floor((new Date() - new Date(date)) / 1000);
         let interval = Math.floor(seconds / 31536000);
-        if (interval >= 1) return `${interval} thn lalu`;
+        if (interval >= 1) return t('time_years_ago')(interval);
         interval = Math.floor(seconds / 2592000);
-        if (interval >= 1) return `${interval} bln lalu`;
+        if (interval >= 1) return t('time_months_ago')(interval);
         interval = Math.floor(seconds / 86400);
-        if (interval >= 1) return `${interval} hari lalu`;
+        if (interval >= 1) return t('time_days_ago')(interval);
         interval = Math.floor(seconds / 3600);
-        if (interval >= 1) return `${interval} jam lalu`;
+        if (interval >= 1) return t('time_hours_ago')(interval);
         interval = Math.floor(seconds / 60);
-        if (interval >= 1) return `${interval} mnt lalu`;
-        return 'baru saja';
+        if (interval >= 1) return t('time_minutes_ago')(interval);
+        return t('detail_just_now');
     };
 
     // 🔑 LOAD DATA SAAT MOUNT
@@ -223,12 +225,12 @@ export default function DetailReportScreen({
                 setReport({
                     id: data.id,
                     title: data.description || `${data.category} di ${data.location_name}`,
-                    location: data.location_name || 'Lokasi tidak diketahui',
+                    location: data.location_name || t('report_location_unknown'),
                     time: formatTimeAgo(data.created_at),
                     category: data.category,
                     severity: data.severity,
                     initials: initials,
-                    description: data.description || 'Tidak ada deskripsi',
+                    description: data.description || t('detail_no_desc'),
                     image: photoUrls.length > 0 ? photoUrls[0] : null,
                     images: photoUrls,
                     upvotes: data.upvotes_count || 0,
@@ -257,7 +259,7 @@ export default function DetailReportScreen({
 
         } catch (error) {
             console.log('Error loading report:', error);
-            Alert.alert('Error', 'Gagal memuat detail laporan');
+            Alert.alert('Error', t('detail_load_failed'));
         } finally {
             setLoading(false);
         }
@@ -265,14 +267,14 @@ export default function DetailReportScreen({
 
     const handleAddComment = async () => {
         if (!commentText.trim()) {
-            Alert.alert('Info', 'Silakan tulis komentar terlebih dahulu');
+            Alert.alert('Info', t('detail_comment_empty_alert'));
             return;
         }
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                Alert.alert('Info', 'Anda harus masuk untuk berkomentar');
+                Alert.alert('Info', t('detail_comment_login_alert'));
                 return;
             }
 
@@ -287,15 +289,15 @@ export default function DetailReportScreen({
                     content: commentText.trim(),
                 })
                 .select(`
-        id,
-        content,
-        created_at,
-        user_id,
-        profiles (
-          display_name,
-          avatar_url
-        )
-      `)
+                    id,
+                    content,
+                    created_at,
+                    user_id,
+                    profiles (
+                    display_name,
+                    avatar_url
+                    )
+                `)
                 .single();
 
             if (error) {
@@ -314,7 +316,7 @@ export default function DetailReportScreen({
                 initials: initials,
                 avatar_url: avatarUrl,
                 content: data.content,
-                time: 'Baru saja',
+                time: t('detail_just_now'),
                 userId: data.user_id,
                 isOwn: data.user_id === userId,
             };
@@ -334,7 +336,7 @@ export default function DetailReportScreen({
 
         } catch (error) {
             console.log('❌ Error adding comment:', error);
-            Alert.alert('Error', 'Gagal menambahkan komentar: ' + (error.message || 'Silakan coba lagi'));
+            Alert.alert('Error', t('detail_comment_add_failed') + ': ' + (error.message || ''));
         } finally {
             setIsSubmittingComment(false);
         }
@@ -344,17 +346,17 @@ export default function DetailReportScreen({
     const handleDeleteComment = (commentId, commentUserId) => {
         // Cek apakah komentar milik user sendiri atau user adalah admin
         if (commentUserId !== userId) {
-            Alert.alert('Info', 'Anda hanya bisa menghapus komentar sendiri');
+            Alert.alert('Info', t('detail_comment_delete_denied'));
             return;
         }
 
         Alert.alert(
-            'Hapus Komentar',
-            'Apakah Anda yakin ingin menghapus komentar ini?',
+            t('detail_comment_delete_title'),
+            t('detail_comment_delete_confirm'),
             [
-                { text: 'Batal', style: 'cancel' },
+                { text: t('detail_comment_cancel'), style: 'cancel' },
                 {
-                    text: 'Hapus',
+                    text: t('detail_comment_delete_btn'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -367,10 +369,10 @@ export default function DetailReportScreen({
 
                             // Update state
                             setComments(prev => prev.filter(c => c.id !== commentId));
-                            Alert.alert('Berhasil', 'Komentar berhasil dihapus');
+                            Alert.alert('OK', t('detail_comment_delete_success'));
                         } catch (error) {
                             console.log('Error deleting comment:', error);
-                            Alert.alert('Error', 'Gagal menghapus komentar');
+                            Alert.alert('Error', t('detail_comment_delete_failed'));
                         }
                     }
                 }
@@ -380,7 +382,7 @@ export default function DetailReportScreen({
 
     // 🔑 EDIT KOMENTAR (Opsional - bisa ditambahkan nanti)
     const handleEditComment = (commentId) => {
-        Alert.alert('Info', 'Fitur edit komentar akan segera hadir');
+        Alert.alert('Info', t('detail_comment_edit_soon'));
     };
 
     // 🔑 UPVOTE LAPORAN
@@ -388,50 +390,49 @@ export default function DetailReportScreen({
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                Alert.alert('Info', 'Anda harus masuk untuk memberikan upvote.');
+                Alert.alert('Info', t('detail_upvote_login'));
                 return;
             }
 
-            if (isUpvoted) {
-                // Remove upvote
-                const { error } = await supabase
-                    .from('upvotes')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('report_id', reportId);
+            const { data: existingUpvote, error: checkError } = await supabase
+                .from('upvotes')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('report_id', reportId)
+                .maybeSingle();
 
-                if (error) throw error;
+            if (checkError) throw checkError;
 
-                const newCount = upvotesCount - 1;
-                await supabase
-                    .from('reports')
-                    .update({ upvotes_count: newCount })
-                    .eq('id', reportId);
-
-                setIsUpvoted(false);
-                setUpvotesCount(newCount);
-                if (onUpvote) onUpvote(reportId);
-            } else {
-                // Add upvote
-                const { error } = await supabase
-                    .from('upvotes')
-                    .insert({ user_id: user.id, report_id: reportId });
-
-                if (error) throw error;
-
-                const newCount = upvotesCount + 1;
-                await supabase
-                    .from('reports')
-                    .update({ upvotes_count: newCount })
-                    .eq('id', reportId);
-
-                setIsUpvoted(true);
-                setUpvotesCount(newCount);
-                if (onUpvote) onUpvote(reportId);
+            if (existingUpvote) {
+                Alert.alert('Info', 'Anda sudah memberikan upvote untuk laporan ini');
+                return;
             }
+
+            const { error: insertError } = await supabase
+                .from('upvotes')
+                .insert({ user_id: user.id, report_id: reportId });
+
+            if (insertError) throw insertError;
+
+            const newCount = upvotesCount + 1;
+            await supabase
+                .from('reports')
+                .update({ upvotes_count: newCount })
+                .eq('id', reportId);
+
+            setIsUpvoted(true);
+            setUpvotesCount(newCount);
+            if (onUpvote) onUpvote(reportId);
+
         } catch (error) {
             console.log('Error upvoting:', error);
-            Alert.alert('Error', 'Gagal memperbarui upvote');
+
+            if (error.code === '23505') {
+                Alert.alert('Info', 'Anda sudah memberikan upvote untuk laporan ini');
+                await checkUpvoteStatus();
+            } else {
+                Alert.alert('Error', t('detail_upvote_failed'));
+            }
         }
     };
 
@@ -439,8 +440,8 @@ export default function DetailReportScreen({
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `🌿 ${report?.title}\n📍 ${report?.location}\n⚠️ Tingkat ${report?.severity}\n\nBergabunglah untuk melaporkan polusi udara di SkySentry!`,
-                title: 'Laporan Polusi Udara - SkySentry',
+                message: t('detail_share_msg')(report?.title, report?.location, report?.severity),
+                title: t('detail_share_title'),
             });
         } catch (error) {
             console.log(error);
@@ -450,14 +451,14 @@ export default function DetailReportScreen({
     // 🔑 REPORT KONTEN
     const handleReport = () => {
         Alert.alert(
-            'Laporkan Konten',
-            'Apakah Anda yakin ingin melaporkan laporan ini sebagai konten yang tidak pantas?',
+            t('detail_report_content_title'),
+            t('detail_report_content_confirm'),
             [
-                { text: 'Batal', style: 'cancel' },
+                { text: t('detail_report_content_cancel'), style: 'cancel' },
                 {
-                    text: 'Laporkan',
+                    text: t('detail_report_content_btn'),
                     style: 'destructive',
-                    onPress: () => Alert.alert('Berhasil', 'Laporan akan ditinjau oleh tim kami')
+                    onPress: () => Alert.alert('OK', t('detail_report_content_success'))
                 },
             ]
         );
@@ -520,7 +521,7 @@ export default function DetailReportScreen({
                         <Text style={styles.commentTime}>{item.time}</Text>
                         {item.isOwn && (
                             <View style={styles.commentOwnBadge}>
-                                <Text style={styles.commentOwnText}>Anda</Text>
+                                <Text style={styles.commentOwnText}>{t('detail_comment_you')}</Text>
                             </View>
                         )}
                     </View>
@@ -528,10 +529,10 @@ export default function DetailReportScreen({
                     <View style={styles.commentActions}>
                         <TouchableOpacity
                             style={styles.commentActionBtn}
-                            onPress={() => Alert.alert('Info', 'Fitur like komentar akan segera hadir')}
+                            onPress={() => Alert.alert('Info', t('detail_comment_like_soon'))}
                         >
                             <MaterialIcons name="favorite-border" size={14} color={colors.textGray} />
-                            <Text style={styles.commentActionText}>Suka</Text>
+                            <Text style={styles.commentActionText}>{t('detail_comment_like')}</Text>
                         </TouchableOpacity>
 
                         {item.isOwn && (
@@ -548,7 +549,7 @@ export default function DetailReportScreen({
                                     onPress={() => handleDeleteComment(item.id, item.userId)}
                                 >
                                     <MaterialIcons name="delete" size={14} color="#EF4444" />
-                                    <Text style={[styles.commentActionText, { color: '#EF4444' }]}>Hapus</Text>
+                                    <Text style={[styles.commentActionText, { color: '#EF4444' }]}>{t('detail_comment_delete')}</Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -564,7 +565,7 @@ export default function DetailReportScreen({
         return (
             <SafeAreaView style={[styles.container, styles.loadingContainer]}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Memuat detail laporan...</Text>
+                <Text style={styles.loadingText}>{t('detail_loading')}</Text>
             </SafeAreaView>
         );
     }
@@ -573,12 +574,12 @@ export default function DetailReportScreen({
         return (
             <SafeAreaView style={[styles.container, styles.errorContainer]}>
                 <MaterialIcons name="error-outline" size={64} color={colors.textGray} />
-                <Text style={styles.errorTitle}>Laporan tidak ditemukan</Text>
+                <Text style={styles.errorTitle}>{t('detail_not_found')}</Text>
                 <TouchableOpacity
                     style={styles.errorButton}
                     onPress={handleBack}
                 >
-                    <Text style={styles.errorButtonText}>Kembali</Text>
+                    <Text style={styles.errorButtonText}>{t('detail_back_btn')}</Text>
                 </TouchableOpacity>
             </SafeAreaView>
         );
@@ -602,7 +603,7 @@ export default function DetailReportScreen({
                     >
                         <MaterialIcons name="arrow-back" size={24} color={colors.textDark} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Detail Laporan</Text>
+                    <Text style={styles.headerTitle}>{t('detail_title')}</Text>
                     <View style={styles.headerRight}>
                         <TouchableOpacity
                             style={styles.headerIconBtn}
@@ -663,14 +664,14 @@ export default function DetailReportScreen({
                                                 <View style={styles.imageCountBadge}>
                                                     <MaterialIcons name="image" size={12} color="#FFFFFF" />
                                                     <Text style={styles.imageCountText}>
-                                                        {report.images.length} foto
+                                                        {t('detail_photos_count')(report.images.length)}
                                                     </Text>
                                                 </View>
                                             )}
                                         </View>
                                         <View style={styles.tapOverlay}>
                                             <MaterialIcons name="fullscreen" size={20} color="#FFFFFF" />
-                                            <Text style={styles.tapOverlayText}>Tap untuk zoom</Text>
+                                            <Text style={styles.tapOverlayText}>{t('detail_tap_zoom')}</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -740,13 +741,13 @@ export default function DetailReportScreen({
                                 </View>
                                 <View style={styles.reporterInfo}>
                                     <Text style={styles.reporterName}>{report.reporterName}</Text>
-                                    <Text style={styles.reporterLabel}>Pelapor</Text>
+                                    <Text style={styles.reporterLabel}>{t('detail_reporter')}</Text>
                                 </View>
                             </View>
 
                             {/* DESKRIPSI */}
                             <View style={styles.descriptionContainer}>
-                                <Text style={styles.descriptionTitle}>📝 Deskripsi Laporan</Text>
+                                <Text style={styles.descriptionTitle}>{t('detail_desc_title')}</Text>
                                 <Text style={styles.descriptionText}>{report.description}</Text>
                             </View>
 
@@ -768,7 +769,7 @@ export default function DetailReportScreen({
                                         {upvotesCount}
                                     </Text>
                                     <Text style={[styles.actionLabel, isUpvoted && styles.actionLabelUpvoted]}>
-                                        Mendukung
+                                        {t('detail_upvote_btn')}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -780,7 +781,7 @@ export default function DetailReportScreen({
                                     <View style={styles.actionIconWrapper}>
                                         <MaterialIcons name="share" size={18} color={colors.textDark} />
                                     </View>
-                                    <Text style={styles.actionCount}>Bagikan</Text>
+                                    <Text style={styles.actionCount}>{t('detail_share_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -790,12 +791,12 @@ export default function DetailReportScreen({
                             <View style={styles.commentsSection}>
                                 <View style={styles.commentsHeader}>
                                     <Text style={styles.commentsTitle}>
-                                        💬 Komentar ({comments.length})
+                                        {t('detail_comments_count')(comments.length)}
                                     </Text>
                                     {comments.length > 3 && (
                                         <TouchableOpacity onPress={() => setShowAllComments(!showAllComments)}>
                                             <Text style={styles.showAllText}>
-                                                {showAllComments ? 'Sembunyikan' : 'Lihat semua'}
+                                                {showAllComments ? t('detail_comments_hide') : t('detail_comments_show_all')}
                                             </Text>
                                         </TouchableOpacity>
                                     )}
@@ -804,13 +805,13 @@ export default function DetailReportScreen({
                                 {isLoadingComments ? (
                                     <View style={styles.loadingComments}>
                                         <ActivityIndicator size="small" color={colors.primary} />
-                                        <Text style={styles.loadingCommentsText}>Memuat komentar...</Text>
+                                        <Text style={styles.loadingCommentsText}>{t('detail_comments_loading')}</Text>
                                     </View>
                                 ) : comments.length === 0 ? (
                                     <View style={styles.emptyComments}>
                                         <MaterialIcons name="chat-bubble-outline" size={32} color={colors.textGray} />
                                         <Text style={styles.emptyCommentsText}>
-                                            Belum ada komentar. Jadilah yang pertama!
+                                            {t('detail_comments_empty')}
                                         </Text>
                                     </View>
                                 ) : (
@@ -834,7 +835,7 @@ export default function DetailReportScreen({
                             <TextInput
                                 ref={commentInputRef}
                                 style={styles.commentInput}
-                                placeholder="Tulis komentar..."
+                                placeholder={t('detail_comments_placeholder')}
                                 placeholderTextColor={colors.textGray}
                                 value={commentText}
                                 onChangeText={setCommentText}

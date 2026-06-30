@@ -133,7 +133,6 @@ export default function LoginScreen({ onLoginSuccess }) {
     setIsVerifying(true);
 
     try {
-      // 🔑 Langsung kirim reset password tanpa verifikasi manual
       const { error } = await supabase.auth.resetPasswordForEmail(
         resetEmail.trim(),
         {
@@ -144,7 +143,6 @@ export default function LoginScreen({ onLoginSuccess }) {
       if (error) {
         console.log('Reset error:', error);
 
-        // 🔑 Tangani error spesifik
         if (error.message.includes('User not found')) {
           Alert.alert(
             'Email Tidak Ditemukan',
@@ -166,7 +164,6 @@ export default function LoginScreen({ onLoginSuccess }) {
         return;
       }
 
-      // ✅ Berhasil mengirim link reset
       setResetStep(2);
       Alert.alert(
         '✅ Link Reset Dikirim',
@@ -182,10 +179,7 @@ export default function LoginScreen({ onLoginSuccess }) {
     }
   };
 
-  // screens/LoginScreen.js - Bagian handleResetPassword
-
   const handleResetPassword = async () => {
-    // Validasi password baru
     const validation = validatePassword(newPassword);
     if (!validation.valid) {
       setPasswordError(validation.message);
@@ -201,7 +195,6 @@ export default function LoginScreen({ onLoginSuccess }) {
     setIsResetting(true);
 
     try {
-      // 🔑 Update password menggunakan reset password dengan redirect
       const { error } = await supabase.auth.resetPasswordForEmail(
         resetEmail.trim(),
         {
@@ -289,6 +282,30 @@ export default function LoginScreen({ onLoginSuccess }) {
     } catch (error) {
       console.log('Google login error:', error);
       Alert.alert('Error', 'Terjadi kesalahan saat login dengan Google.');
+    }
+  };
+
+  // 🔑 LOGIN DENGAN APPLE
+  const handleAppleLogin = async () => {
+    try {
+      // 🔑 Coba login dengan Apple (jika support)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: 'skysentry://home',
+        },
+      });
+
+      if (error) {
+        console.log('Apple login error:', error);
+        Alert.alert('Login Gagal', 'Gagal login dengan Apple: ' + error.message);
+      } else {
+        // 🔑 Tampilkan alert bahwa fitur dalam pengembangan
+        Alert.alert('Info', 'Fitur login dengan Apple sedang dalam pengembangan.');
+      }
+    } catch (error) {
+      console.log('Apple login error:', error);
+      Alert.alert('Error', 'Terjadi kesalahan saat login dengan Apple.');
     }
   };
 
@@ -398,8 +415,10 @@ export default function LoginScreen({ onLoginSuccess }) {
             <Text style={styles.dividerText}>atau lanjutkan dengan</Text>
           </View>
 
+          {/* 🔥 SOCIAL BUTTONS - Google & Apple */}
           <View style={styles.socialRow}>
             <CustomButton title="Google" type="social" iconName="google" onPress={handleGoogleLogin} />
+            <CustomButton title="Apple" type="social" iconName="apple" onPress={handleAppleLogin} />
           </View>
 
           <View style={styles.footerContainer}>

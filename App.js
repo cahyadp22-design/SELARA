@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { supabase } from './src/config/supabase';
+import { LanguageProvider, useLanguage } from './src/i18n/i18n';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import MapScreen from './src/screens/MapScreen';
@@ -14,7 +15,7 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import DetailReportScreen from './src/screens/DetailReportScreen'; // 🔑 TAMBAHKAN INI
 
 
-export default function App() {
+function AppContent() {
   const [currentScreen, setCurrentScreen] = useState('login');
   const [history, setHistory] = useState(['home']);
   const [session, setSession] = useState(null);
@@ -89,7 +90,7 @@ export default function App() {
       if (error) throw error;
       if (data) {
         const mappedReports = data.map((item) => {
-          const displayName = item.profiles?.display_name || 'Pengguna';
+          const displayName = item.profiles?.display_name || 'User';
           const initials = displayName.substring(0, 2).toUpperCase();
           // 🔑 Ambil avatar_url dari profiles
           const avatarUrl = item.profiles?.avatar_url || null;
@@ -125,16 +126,16 @@ export default function App() {
     const seconds = Math.floor((new Date() - date) / 1000);
     let interval = Math.floor(seconds / 31536000);
 
-    if (interval >= 1) return `${interval} thn lalu`;
+    if (interval >= 1) return `${interval}y ago`;
     interval = Math.floor(seconds / 2592000);
-    if (interval >= 1) return `${interval} bln lalu`;
+    if (interval >= 1) return `${interval}mo ago`;
     interval = Math.floor(seconds / 86400);
-    if (interval >= 1) return `${interval} hari lalu`;
+    if (interval >= 1) return `${interval}d ago`;
     interval = Math.floor(seconds / 3600);
-    if (interval >= 1) return `${interval} jam lalu`;
+    if (interval >= 1) return `${interval}h ago`;
     interval = Math.floor(seconds / 60);
-    if (interval >= 1) return `${interval} mnt lalu`;
-    return 'baru saja';
+    if (interval >= 1) return `${interval}m ago`;
+    return 'just now';
   };
 
   useEffect(() => {
@@ -354,72 +355,81 @@ export default function App() {
 
 
   return (
-    <SafeAreaProvider>
-      <View style={styles.container}>
-        <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="dark" />
 
-        {/* Screens yang sudah ada */}
-        {currentScreen === 'login' && (
-          <LoginScreen onLoginSuccess={handleLoginSuccess} />
-        )}
-        {currentScreen === 'home' && (
-          <HomeScreen
-            profileData={profileData}
-            onLogout={handleLogout}
-            onTabPress={handleTabPress}
-          />
-        )}
-        {currentScreen === 'peta' && (
-          <MapScreen onTabPress={handleTabPress} onBack={handleBack} />
-        )}
-        {currentScreen === 'rute' && (
-          <RouteScreen onTabPress={handleTabPress} onBack={handleBack} />
-        )}
-        {currentScreen === 'tren' && (
-          <CommunityScreen
-            reports={reportsList}
-            onUpvote={handleUpvote}
-            onAddReportPress={() => navigateTo('tambah-laporan')}
-            onTabPress={handleTabPress}
-            navigation={{ navigate: navigateTo }}
-            onRefresh={handleRefreshReports}
-          />
-        )}
-        {currentScreen === 'tambah-laporan' && (
-          <AddReportScreen onSubmit={handleAddReport} onBack={handleBack} />
-        )}
+      {/* Screens yang sudah ada */}
+      {currentScreen === 'login' && (
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+      )}
+      {currentScreen === 'home' && (
+        <HomeScreen
+          profileData={profileData}
+          onLogout={handleLogout}
+          onTabPress={handleTabPress}
+        />
+      )}
+      {currentScreen === 'peta' && (
+        <MapScreen onTabPress={handleTabPress} onBack={handleBack} />
+      )}
+      {currentScreen === 'rute' && (
+        <RouteScreen onTabPress={handleTabPress} onBack={handleBack} />
+      )}
+      {currentScreen === 'tren' && (
+        <CommunityScreen
+          reports={reportsList}
+          onUpvote={handleUpvote}
+          onAddReportPress={() => navigateTo('tambah-laporan')}
+          onTabPress={handleTabPress}
+          navigation={{ navigate: navigateTo }}
+          onRefresh={handleRefreshReports}
+        />
+      )}
+      {currentScreen === 'tambah-laporan' && (
+        <AddReportScreen onSubmit={handleAddReport} onBack={handleBack} />
+      )}
 
-        {currentScreen === 'detail-laporan' && (
-          <DetailReportScreen
-            route={{ params: routeParams }}
-            onUpvote={handleUpvote}
-            onAddComment={() => { }}
-            onBack={handleBack}
-            navigation={{
-              navigate: navigateTo,
-              goBack: handleBack
-            }}
-          />
-        )}
+      {currentScreen === 'detail-laporan' && (
+        <DetailReportScreen
+          route={{ params: routeParams }}
+          onUpvote={handleUpvote}
+          onAddComment={() => { }}
+          onBack={handleBack}
+          navigation={{
+            navigate: navigateTo,
+            goBack: handleBack
+          }}
+        />
+      )}
 
-        {currentScreen === 'profil' && (
-          <ProfileScreen
-            profileData={profileData}
-            onEditPress={() => navigateTo('edit-profil')}
-            onTabPress={handleTabPress}
-            onLogout={handleLogout}
-          />
-        )}
-        {currentScreen === 'edit-profil' && (
-          <EditProfileScreen
-            profileData={profileData}
-            onSubmit={handleUpdateProfile}
-            onBack={handleBack}
-            onTabPress={handleTabPress}
-          />
-        )}
-      </View>
-    </SafeAreaProvider>
+      {currentScreen === 'profil' && (
+        <ProfileScreen
+          profileData={profileData}
+          onEditPress={() => navigateTo('edit-profil')}
+          onTabPress={handleTabPress}
+          onLogout={handleLogout}
+        />
+      )}
+      {currentScreen === 'edit-profil' && (
+        <EditProfileScreen
+          profileData={profileData}
+          onSubmit={handleUpdateProfile}
+          onBack={handleBack}
+          onTabPress={handleTabPress}
+        />
+      )}
+    </View>
+  );
+}
+
+// 🔑 WRAP DENGAN LANGUAGE PROVIDER
+export default function App() {
+  return (
+    <LanguageProvider>
+      <SafeAreaProvider>
+        <AppContent />
+      </SafeAreaProvider>
+    </LanguageProvider>
   );
 }
 

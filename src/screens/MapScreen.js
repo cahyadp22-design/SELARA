@@ -29,6 +29,7 @@ import {
   getWAQIRecommendation,
   getAreaDescription,
 } from '../lib/waqiApi';
+import { useLanguage } from '../i18n/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.7;
@@ -38,11 +39,12 @@ const BOTTOM_SHEET_MIN_HEIGHT = SCREEN_HEIGHT * 0.15;
 // 🔹 CUSTOM MODAL
 // ============================================================
 const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
+  const { t } = useLanguage();
   if (!data) return null;
 
   const aqi = data.aqi;
-  const label = getWAQILabel(aqi);
-  const recommendation = getWAQIRecommendation(aqi);
+  const label = getWAQILabel(aqi, t); // ✅ FIX: tambah parameter t
+  const recommendation = getWAQIRecommendation(aqi, t); // ✅ FIX: tambah parameter t
   const color = getWAQIColor(aqi);
 
   const components = useMemo(() => {
@@ -75,7 +77,7 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
           <View style={[styles.modalHeader, { borderBottomColor: color }]}>
             <View style={styles.modalHeaderLeft}>
               <View style={[styles.modalStatusDot, { backgroundColor: color }]} />
-              <Text style={styles.modalTitle}>Kualitas Udara</Text>
+              <Text style={styles.modalTitle}>{t('map_air_quality')}</Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={styles.modalCloseButton}>
               <MaterialIcons name="close" size={22} color={colors.textDark} />
@@ -99,7 +101,7 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
 
             <View style={styles.modalDivider} />
 
-            <Text style={styles.modalSectionTitle}>Komponen Polusi</Text>
+            <Text style={styles.modalSectionTitle}>{t('map_pollution_comp')}</Text>
             <View style={styles.modalComponentsGrid}>
               {components.map((comp, index) => (
                 <View key={index} style={styles.modalComponentCard}>
@@ -111,33 +113,33 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
                 </View>
               ))}
               {components.length === 0 && (
-                <Text style={styles.modalNoData}>Tidak ada data komponen</Text>
+                <Text style={styles.modalNoData}>{t('map_no_comp_data')}</Text>
               )}
             </View>
 
             {(hasData(data.temperature) || hasData(data.humidity) || hasData(data.pressure)) && (
               <>
-                <Text style={styles.modalSectionTitle}>Cuaca</Text>
+                <Text style={styles.modalSectionTitle}>{t('map_weather')}</Text>
                 <View style={styles.modalWeatherGrid}>
                   {hasData(data.temperature) && (
                     <View style={styles.modalWeatherCard}>
                       <MaterialIcons name="thermostat" size={20} color={colors.textGray} />
                       <Text style={styles.modalWeatherValue}>{data.temperature}°C</Text>
-                      <Text style={styles.modalWeatherLabel}>Suhu</Text>
+                      <Text style={styles.modalWeatherLabel}>{t('map_temp')}</Text>
                     </View>
                   )}
                   {hasData(data.humidity) && (
                     <View style={styles.modalWeatherCard}>
                       <MaterialIcons name="opacity" size={20} color={colors.textGray} />
                       <Text style={styles.modalWeatherValue}>{data.humidity}%</Text>
-                      <Text style={styles.modalWeatherLabel}>Kelembaban</Text>
+                      <Text style={styles.modalWeatherLabel}>{t('map_humidity')}</Text>
                     </View>
                   )}
                   {hasData(data.pressure) && (
                     <View style={styles.modalWeatherCard}>
                       <MaterialIcons name="explore" size={20} color={colors.textGray} />
                       <Text style={styles.modalWeatherValue}>{data.pressure} hPa</Text>
-                      <Text style={styles.modalWeatherLabel}>Tekanan</Text>
+                      <Text style={styles.modalWeatherLabel}>{t('map_pressure')}</Text>
                     </View>
                   )}
                 </View>
@@ -146,7 +148,7 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
 
             <Text style={styles.modalUpdateTime}>
               <MaterialIcons name="access-time" size={12} color={colors.textGray} />{' '}
-              Terakhir diperbarui: {new Date(data.time).toLocaleString('id-ID')}
+              {t('home_last_updated')}: {new Date(data.time).toLocaleString('id-ID')}
             </Text>
 
             <TouchableOpacity
@@ -154,7 +156,7 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
               onPress={handleClose}
               activeOpacity={0.7}
             >
-              <Text style={styles.modalCloseButtonText}>Mengerti</Text>
+              <Text style={styles.modalCloseButtonText}>{t('map_understand')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -167,10 +169,11 @@ const CustomAlertModal = React.memo(({ visible, onClose, data }) => {
 // 🔹 KOMPONEN UTAMA
 // ============================================================
 export default function MapScreen({ onTabPress, onBack }) {
+  const { t } = useLanguage();
   const [location, setLocation] = useState(null);
   const [currentPollution, setCurrentPollution] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState('Mengambil data kualitas udara...');
+  const [loadingMessage, setLoadingMessage] = useState(t('map_updating'));
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mapRegion, setMapRegion] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -189,7 +192,7 @@ export default function MapScreen({ onTabPress, onBack }) {
     setLoading(true);
 
     try {
-      setLoadingMessage('Mengambil data tersimpan...');
+      setLoadingMessage(t('map_loading_cached'));
       const cachedData = await AsyncStorage.getItem('lastPollution');
       let hasCachedData = false;
 
@@ -200,15 +203,15 @@ export default function MapScreen({ onTabPress, onBack }) {
             setCurrentPollution(parsed);
             setLastUpdate(new Date(parsed.time || Date.now()));
             hasCachedData = true;
-            setLoadingMessage('Menampilkan data terakhir...');
+            setLoadingMessage(t('map_loading_last'));
           }
         } catch (e) { }
       }
 
-      setLoadingMessage('Meminta izin lokasi...');
+      setLoadingMessage(t('map_loading_perm'));
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Izin Lokasi', 'Aktifkan izin lokasi untuk fitur ini');
+        Alert.alert(t('route_permission_title'), t('route_permission_msg'));
         const defaultLoc = { latitude: -6.2088, longitude: 106.8456 };
         setLocation({
           latitude: defaultLoc.latitude,
@@ -227,7 +230,7 @@ export default function MapScreen({ onTabPress, onBack }) {
         return;
       }
 
-      setLoadingMessage('Mendapatkan lokasi GPS...');
+      setLoadingMessage(t('map_loading_gps'));
       let loc;
       try {
         loc = await Promise.race([
@@ -239,7 +242,7 @@ export default function MapScreen({ onTabPress, onBack }) {
           )
         ]);
       } catch (error) {
-        setLoadingMessage('GPS timeout, menggunakan lokasi terakhir...');
+        setLoadingMessage(t('map_loading_timeout'));
         if (hasCachedData && currentPollution?.latitude && currentPollution?.longitude) {
           loc = {
             coords: {
@@ -265,7 +268,7 @@ export default function MapScreen({ onTabPress, onBack }) {
 
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Gagal memuat data. Periksa koneksi internet.');
+      Alert.alert('Error', t('home_load_error'));
     } finally {
       setLoading(false);
     }
@@ -273,7 +276,7 @@ export default function MapScreen({ onTabPress, onBack }) {
 
   const fetchPollutionData = useCallback(async (lat, lon) => {
     try {
-      setLoadingMessage('Mengambil data polusi...');
+      setLoadingMessage(t('map_loading_pol'));
       const mainData = await fetchWAQIPollution(lat, lon);
 
       if (mainData) {
@@ -340,7 +343,7 @@ export default function MapScreen({ onTabPress, onBack }) {
       }
       await refreshData(loc.coords.latitude, loc.coords.longitude);
     } catch (error) {
-      Alert.alert('Error', 'Gagal mendapatkan lokasi');
+      Alert.alert('Error', t('map_error_loc'));
     }
   }, [refreshData]);
 
@@ -427,7 +430,7 @@ export default function MapScreen({ onTabPress, onBack }) {
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{loadingMessage}</Text>
-          <Text style={styles.loadingSubtext}>Mohon tunggu sebentar...</Text>
+          <Text style={styles.loadingSubtext}>{t('map_wait')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -480,7 +483,7 @@ export default function MapScreen({ onTabPress, onBack }) {
             <MaterialIcons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Peta Polusi</Text>
+            <Text style={styles.headerTitle}>{t('map_title')}</Text>
           </View>
           <TouchableOpacity
             style={styles.iconButton}
@@ -508,8 +511,9 @@ export default function MapScreen({ onTabPress, onBack }) {
               </View>
 
               <View style={styles.infoRight}>
+                {/* ✅ FIX: tambah parameter t */}
                 <Text style={[styles.infoLabel, { color: getWAQIColor(currentPollution.aqi) }]}>
-                  {getWAQILabel(currentPollution.aqi)}
+                  {getWAQILabel(currentPollution.aqi, t)}
                 </Text>
 
                 <View style={styles.infoDetailRow}>
@@ -533,12 +537,12 @@ export default function MapScreen({ onTabPress, onBack }) {
 
                 <Text style={styles.infoAreaNote}>
                   <MaterialIcons name="info" size={10} color={colors.textGray} />{' '}
-                  Perkiraan area terdampak dalam radius {currentPollution.aqi > 150 ? '8' : '5'} km
+                  {t('map_impact_radius')(currentPollution.aqi > 150 ? '8' : '5')}
                 </Text>
 
                 <Text style={styles.infoUpdate}>
                   <MaterialIcons name="access-time" size={10} color={colors.textGray} />{' '}
-                  Update {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('id-ID', {
+                  {t('home_last_updated')} {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('id-ID', {
                     hour: '2-digit',
                     minute: '2-digit'
                   }) : '...'}
@@ -551,7 +555,7 @@ export default function MapScreen({ onTabPress, onBack }) {
         {isRefreshing && (
           <View style={styles.refreshOverlay}>
             <ActivityIndicator size="small" color="#FFFFFF" />
-            <Text style={styles.refreshText}>Memperbarui data...</Text>
+            <Text style={styles.refreshText}>{t('map_updating')}</Text>
           </View>
         )}
       </View>
@@ -568,7 +572,7 @@ export default function MapScreen({ onTabPress, onBack }) {
         >
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetHandleText}>
-            {isExpanded ? '⬇️ Klik untuk menutup' : '⬆️ Klik untuk detail'}
+            {isExpanded ? t('map_sheet_close') : t('map_sheet_detail')}
           </Text>
         </TouchableOpacity>
 
@@ -598,6 +602,7 @@ export default function MapScreen({ onTabPress, onBack }) {
                     currentPollution.aqi > 100 ? '#FCD34D' : '#6EE7B7',
                 }
               ]}>
+                {/* ✅ FIX: tambah parameter t */}
                 <Text style={[
                   styles.statusText,
                   {
@@ -605,7 +610,7 @@ export default function MapScreen({ onTabPress, onBack }) {
                       currentPollution.aqi > 100 ? '#D97706' : '#059669'
                   }
                 ]}>
-                  {getWAQIRecommendation(currentPollution.aqi)}
+                  {getWAQIRecommendation(currentPollution.aqi, t)}
                 </Text>
                 <Text style={styles.statusTime}>
                   <MaterialIcons name="access-time" size={10} color={colors.textGray} />{' '}
@@ -615,7 +620,7 @@ export default function MapScreen({ onTabPress, onBack }) {
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Komponen Polusi</Text>
+          <Text style={styles.sectionTitle}>{t('map_pollution_comp')}</Text>
 
           {currentPollution && (
             <View style={styles.detailGrid}>
@@ -685,13 +690,12 @@ export default function MapScreen({ onTabPress, onBack }) {
             <View style={styles.areaInfoContainer}>
               <MaterialIcons name="info" size={14} color={colors.primary} />
               <Text style={styles.areaInfoText}>
-                {getAreaDescription(currentPollution.aqi)} Perkiraan area dampak dalam radius{' '}
-                {currentPollution.aqi > 150 ? '8' : '5'} kilometer dari stasiun pemantau.
+                {t('map_impact_radius_full')(currentPollution.aqi > 150 ? '8' : '5')}
               </Text>
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Rekomendasi</Text>
+          <Text style={styles.sectionTitle}>{t('map_rec_title')}</Text>
 
           <TouchableOpacity
             style={styles.actionItem}
@@ -703,8 +707,8 @@ export default function MapScreen({ onTabPress, onBack }) {
                 <MaterialIcons name="directions" size={16} color={colors.primary} />
               </View>
               <View>
-                <Text style={styles.actionText}>Cari Rute Alternatif</Text>
-                <Text style={styles.actionSubtext}>Hindari area dengan polusi tinggi</Text>
+                <Text style={styles.actionText}>{t('map_rec_route')}</Text>
+                <Text style={styles.actionSubtext}>{t('map_rec_route_desc')}</Text>
               </View>
             </View>
             <MaterialIcons name="chevron-right" size={20} color={colors.textGray} />
@@ -720,8 +724,8 @@ export default function MapScreen({ onTabPress, onBack }) {
                 <MaterialIcons name="description" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.actionText}>Laporan Lengkap</Text>
-                <Text style={styles.actionSubtext}>Detail semua parameter polusi</Text>
+                <Text style={styles.actionText}>{t('map_full_report')}</Text>
+                <Text style={styles.actionSubtext}>{t('map_full_report_desc')}</Text>
               </View>
             </View>
             <MaterialIcons name="chevron-right" size={20} color={colors.textGray} />

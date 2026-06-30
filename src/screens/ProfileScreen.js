@@ -19,27 +19,29 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../theme/colors';
 import BottomTab from '../components/BottomTab';
 import { supabase } from '../config/supabase';
+import { useLanguage } from '../i18n/i18n';
 
 // 🔑 LEVEL TRUST METER
 const TRUST_LEVELS = [
-  { key: 'Pemula', icon: '🥚', color: '#94A3B8', bg: '#F1F5F9', minScore: 0, description: 'Mulai perjalananmu sebagai pelapor polusi' },
-  { key: 'Kontributor', icon: '🌱', color: '#22C55E', bg: '#DCFCE7', minScore: 21, description: 'Mulai berkontribusi dalam komunitas' },
-  { key: 'Aktif', icon: '🌿', color: '#16A34A', bg: '#BBF7D0', minScore: 51, description: 'Pengguna aktif yang peduli lingkungan' },
-  { key: 'Terpercaya', icon: '🌳', color: '#15803D', bg: '#86EFAC', minScore: 81, description: 'Laporanmu dipercaya komunitas' },
-  { key: 'Ahli', icon: '🏆', color: '#EAB308', bg: '#FEF08A', minScore: 121, description: 'Ahli dalam memantau kualitas udara' },
-  { key: 'Master', icon: '👑', color: '#7C3AED', bg: '#DDD6FE', minScore: 181, description: 'Master pelapor, inspirasi bagi banyak orang' },
+  { key: 'Pemula', tKey: 'trust_pemula', descKey: 'trust_pemula_desc', icon: '🥚', color: '#94A3B8', bg: '#F1F5F9', minScore: 0 },
+  { key: 'Kontributor', tKey: 'trust_kontributor', descKey: 'trust_kontributor_desc', icon: '🌱', color: '#22C55E', bg: '#DCFCE7', minScore: 21 },
+  { key: 'Aktif', tKey: 'trust_aktif', descKey: 'trust_aktif_desc', icon: '🌿', color: '#16A34A', bg: '#BBF7D0', minScore: 51 },
+  { key: 'Terpercaya', tKey: 'trust_terpercaya', descKey: 'trust_terpercaya_desc', icon: '🌳', color: '#15803D', bg: '#86EFAC', minScore: 81 },
+  { key: 'Ahli', tKey: 'trust_ahli', descKey: 'trust_ahli_desc', icon: '🏆', color: '#EAB308', bg: '#FEF08A', minScore: 121 },
+  { key: 'Master', tKey: 'trust_master', descKey: 'trust_master_desc', icon: '👑', color: '#7C3AED', bg: '#DDD6FE', minScore: 181 },
 ];
 
 export default function ProfileScreen({ profileData, onEditPress, onTabPress, onLogout }) {
+  const { t, language, setLanguage } = useLanguage();
 
   // 🔑 FUNGSI LOGOUT
   const handleLogout = () => {
     Alert.alert(
-      'Keluar',
-      'Apakah kamu yakin ingin keluar dari akun?',
+      t('profile_logout_title'),
+      t('profile_logout_message'),
       [
-        { text: 'Batal', style: 'cancel' },
-        { text: 'Keluar', style: 'destructive', onPress: onLogout },
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('profile_logout_btn'), style: 'destructive', onPress: onLogout },
       ]
     );
   };
@@ -196,8 +198,8 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerSubtitle}>Akun & preferensi</Text>
-          <Text style={styles.headerTitle}>Profil</Text>
+          <Text style={styles.headerSubtitle}>{t('profile_header_subtitle')}</Text>
+          <Text style={styles.headerTitle}>{t('profile_header_title')}</Text>
         </View>
         <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="#EF4444" />
@@ -237,13 +239,13 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
             <View style={styles.trustLevelContainer}>
               <Text style={styles.trustIcon}>{currentLevel.icon}</Text>
               <View>
-                <Text style={styles.trustLevelText}>{currentLevel.key}</Text>
-                <Text style={styles.trustLevelDesc}>{currentLevel.description}</Text>
+                <Text style={styles.trustLevelText}>{t(currentLevel.tKey)}</Text>
+                <Text style={styles.trustLevelDesc}>{t(currentLevel.descKey)}</Text>
               </View>
             </View>
             <View style={[styles.trustScoreBadge, { backgroundColor: currentLevel.bg }]}>
               <Text style={[styles.trustScoreText, { color: currentLevel.color }]}>
-                {trustData.score} poin
+                {trustData.score} {t('trust_points')}
               </Text>
             </View>
           </View>
@@ -264,8 +266,8 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
             {nextLevel && (
               <Text style={styles.progressLabel}>
                 {progressToNext < 100
-                  ? `Menuju ${nextLevel.icon} ${nextLevel.key} (${Math.round(progressToNext)}%)`
-                  : '✨ Level maksimum tercapai!'}
+                  ? t('trust_towards')(nextLevel.icon, t(nextLevel.tKey), Math.round(progressToNext))
+                  : t('trust_max_reached')}
               </Text>
             )}
           </View>
@@ -274,17 +276,17 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
           <View style={styles.trustStats}>
             <View style={styles.trustStat}>
               <Text style={styles.trustStatNumber}>{trustData.totalReports}</Text>
-              <Text style={styles.trustStatLabel}>📄 Laporan</Text>
+              <Text style={styles.trustStatLabel}>{t('trust_reports')}</Text>
             </View>
             <View style={styles.trustStatDivider} />
             <View style={styles.trustStat}>
               <Text style={styles.trustStatNumber}>{trustData.totalUpvotes}</Text>
-              <Text style={styles.trustStatLabel}>⬆️ Upvote</Text>
+              <Text style={styles.trustStatLabel}>{t('trust_upvotes')}</Text>
             </View>
             <View style={styles.trustStatDivider} />
             <View style={styles.trustStat}>
               <Text style={styles.trustStatNumber}>{trustData.totalComments}</Text>
-              <Text style={styles.trustStatLabel}>💬 Komentar</Text>
+              <Text style={styles.trustStatLabel}>{t('trust_comments')}</Text>
             </View>
           </View>
 
@@ -293,52 +295,35 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
             <View style={styles.trustInfoItem}>
               <MaterialIcons name="check-circle" size={14} color={trustData.isVerified ? '#10B981' : colors.textGray} />
               <Text style={[styles.trustInfoText, trustData.isVerified && { color: '#10B981' }]}>
-                {trustData.isVerified ? 'Akun Terverifikasi ✅' : 'Belum Terverifikasi'}
+                {trustData.isVerified ? t('trust_verified') : t('trust_not_verified')}
               </Text>
             </View>
             {trustData.streakDays > 0 && (
               <View style={styles.trustInfoItem}>
                 <MaterialIcons name="whatshot" size={14} color="#F59E0B" />
-                <Text style={styles.trustInfoText}>🔥 {trustData.streakDays} hari berturut-turut</Text>
+                <Text style={styles.trustInfoText}>{t('trust_streak')(trustData.streakDays)}</Text>
               </View>
             )}
             <View style={styles.trustInfoItem}>
               <MaterialIcons name="info" size={14} color={colors.textGray} />
               <Text style={styles.trustInfoText}>
-                Semakin aktif berkontribusi, semakin tinggi tingkat kepercayaan Anda
+                {t('trust_info')}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statsCard}>
-            <Text style={[styles.statsNumber, { color: colors.primary }]}>
-              {stats.daysMonitored || 0}
-            </Text>
-            <Text style={styles.statsLabel}>Hari dipantau</Text>
-          </View>
-
-          <View style={styles.statsCard}>
-            <Text style={[styles.statsNumber, { color: '#EF4444' }]}>
-              {stats.alertsReceived || 0}
-            </Text>
-            <Text style={styles.statsLabel}>Alert diterima</Text>
-          </View>
-        </View>
-
         {/* SECTION: NOTIFIKASI */}
-        <Text style={styles.sectionTitle}>NOTIFIKASI</Text>
+        <Text style={styles.sectionTitle}>{t('section_notification')}</Text>
         <View style={styles.optionsCard}>
           {/* Opsi 1: Peringatan zona buruk */}
           <View style={styles.optionRow}>
             <View style={styles.optionLeft}>
               <MaterialIcons name="notifications-none" size={22} color={colors.primary} style={styles.optionIcon} />
               <View>
-                <Text style={styles.optionText}>Peringatan zona buruk</Text>
+                <Text style={styles.optionText}>{t('notif_bad_zone_title')}</Text>
                 <Text style={styles.optionSubtext}>
-                  Notifikasi saat memasuki area polusi berbahaya
+                  {t('notif_bad_zone_desc')}
                 </Text>
               </View>
             </View>
@@ -359,9 +344,9 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
             <View style={styles.optionLeft}>
               <MaterialIcons name="access-time" size={20} color={colors.primary} style={styles.optionIcon} />
               <View>
-                <Text style={styles.optionText}>Ringkasan pagi</Text>
+                <Text style={styles.optionText}>{t('notif_morning_title')}</Text>
                 <Text style={styles.optionSubtext}>
-                  Notifikasi kondisi udara setiap pagi
+                  {t('notif_morning_desc')}
                 </Text>
               </View>
             </View>
@@ -388,9 +373,9 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
               <View style={styles.optionLeft}>
                 <MaterialIcons name="access-time" size={20} color={colors.primary} style={styles.optionIcon} />
                 <View>
-                  <Text style={styles.optionText}>Jam ringkasan pagi</Text>
+                  <Text style={styles.optionText}>{t('notif_morning_time_title')}</Text>
                   <Text style={styles.optionSubtext}>
-                    Notifikasi akan dikirim setiap hari jam {morningTime}
+                    {t('notif_morning_time_desc')(morningTime)}
                   </Text>
                 </View>
               </View>
@@ -400,6 +385,50 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
               </View>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* 🔑 SECTION: BAHASA / LANGUAGE */}
+        <Text style={styles.sectionTitle}>{t('section_language')}</Text>
+        <View style={styles.optionsCard}>
+          <View style={[styles.optionRow, { borderBottomWidth: 0, paddingVertical: 16 }]}>
+            <View style={styles.optionLeft}>
+              <MaterialIcons name="language" size={22} color={colors.primary} style={styles.optionIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionText}>{t('language_title')}</Text>
+                <Text style={styles.optionSubtext}>{t('language_desc')}</Text>
+                <View style={styles.languagePicker}>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      language === 'id' && styles.languageOptionActive,
+                    ]}
+                    onPress={() => setLanguage('id')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.languageFlag}>🇮🇩</Text>
+                    <Text style={[
+                      styles.languageOptionText,
+                      language === 'id' && styles.languageOptionTextActive,
+                    ]}>{t('language_id')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      language === 'en' && styles.languageOptionActive,
+                    ]}
+                    onPress={() => setLanguage('en')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.languageFlag}>🇺🇸</Text>
+                    <Text style={[
+                      styles.languageOptionText,
+                      language === 'en' && styles.languageOptionTextActive,
+                    ]}>{t('language_en')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
 
 
@@ -417,7 +446,7 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
             />
             <View style={styles.timePickerModal}>
               <View style={styles.timePickerHeader}>
-                <Text style={styles.timePickerTitle}>Pilih Jam Ringkasan Pagi</Text>
+                <Text style={styles.timePickerTitle}>{t('time_picker_title')}</Text>
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                   <MaterialIcons name="close" size={24} color={colors.textDark} />
                 </TouchableOpacity>
@@ -438,7 +467,7 @@ export default function ProfileScreen({ profileData, onEditPress, onTabPress, on
                     style={[styles.timePickerBtn, styles.timePickerCancel]}
                     onPress={() => setShowTimePicker(false)}
                   >
-                    <Text style={styles.timePickerBtnText}>Batal</Text>
+                    <Text style={styles.timePickerBtnText}>{t('cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.timePickerBtn, styles.timePickerConfirm]}
@@ -836,5 +865,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: colors.textDark,
+  },
+  languagePicker: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    width: '100%',
+  },
+  languageOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    gap: 8,
+  },
+  languageOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  languageFlag: {
+    fontSize: 18,
+  },
+  languageOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textDark,
+  },
+  languageOptionTextActive: {
+    color: colors.primary,
   },
 });

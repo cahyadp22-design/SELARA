@@ -21,14 +21,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import BottomTab from '../components/BottomTab';
 import ReportItem from '../components/ReportItem';
-
-const CATEGORIES = [
-  { id: 'all', label: 'Semua', icon: 'grid-view' },
-  { id: 'Asap pabrik', label: 'Asap Pabrik', icon: 'factory' },
-  { id: 'Pembakaran', label: 'Pembakaran', icon: 'fireplace' },
-  { id: 'Sampah Terbakar', label: 'Sampah Terbakar', icon: 'delete-outline' },
-  { id: 'Knalpot Kendaraan', label: 'Knalpot', icon: 'time-to-leave' },
-];
+import { useLanguage } from '../i18n/i18n';
 
 export default function CommunityScreen({
   reports,
@@ -38,6 +31,7 @@ export default function CommunityScreen({
   navigation,
   onRefresh,
 }) {
+  const { t } = useLanguage();
   const [selectedCity, setSelectedCity] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -46,6 +40,14 @@ export default function CommunityScreen({
   const [sortBy, setSortBy] = useState('terbaru');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [upvotedReports, setUpvotedReports] = useState([]);
+
+  const CATEGORIES = [
+    { id: 'all', label: t('comm_all_cat'), icon: 'grid-view' },
+    { id: 'Asap pabrik', label: t('notif_pollution_high_title').includes('Pollution') ? 'Factory Smoke' : 'Asap Pabrik', icon: 'factory' },
+    { id: 'Pembakaran', label: t('notif_pollution_high_title').includes('Pollution') ? 'Burning' : 'Pembakaran', icon: 'fireplace' },
+    { id: 'Sampah Terbakar', label: t('notif_pollution_high_title').includes('Pollution') ? 'Trash Burning' : 'Sampah Terbakar', icon: 'delete-outline' },
+    { id: 'Knalpot Kendaraan', label: t('notif_pollution_high_title').includes('Pollution') ? 'Exhaust' : 'Knalpot', icon: 'time-to-leave' },
+  ];
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -132,6 +134,10 @@ export default function CommunityScreen({
     return base;
   };
 
+  const getSortLabel = () => {
+    return sortBy === 'terpopuler' ? `🔥 ${t('comm_sort_popular')}` : `📅 ${t('comm_sort_latest')}`;
+  };
+
   const isUpvoted = (reportId) => {
     return upvotedReports.includes(reportId);
   };
@@ -168,9 +174,7 @@ export default function CommunityScreen({
     setSortModalVisible(false);
   };
 
-  const getSortLabel = () => {
-    return sortBy === 'terpopuler' ? '🔥 Terpopuler' : '📅 Terbaru';
-  };
+  // Removed getSortLabel
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -215,8 +219,8 @@ export default function CommunityScreen({
   const handleShare = async (item) => {
     try {
       await Share.share({
-        message: `🌿 ${item.title}\n📍 ${item.location}\n⚠️ ${item.severity}\n\nLihat di SkySentry!`,
-        title: 'Laporan Polusi Udara',
+        message: t('comm_share_msg')(item.title, item.location),
+        title: t('comm_title'),
       });
     } catch (error) {
       console.log(error);
@@ -269,8 +273,8 @@ export default function CommunityScreen({
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>Laporan Polusi</Text>
-        <Text style={styles.headerTitle}>Komunitas</Text>
+        <Text style={styles.headerSubtitle}>{t('comm_title')}</Text>
+        <Text style={styles.headerTitle}>{t('tab_trend')}</Text>
       </View>
 
       {/* Filter Bar */}
@@ -292,7 +296,7 @@ export default function CommunityScreen({
             styles.filterButtonText,
             selectedCity && styles.filterButtonTextActive
           ]} numberOfLines={1}>
-            {selectedCity || 'Semua Kota'}
+            {selectedCity || t('comm_filter_city')}
           </Text>
           <MaterialIcons
             name="expand-more"
@@ -335,15 +339,15 @@ export default function CommunityScreen({
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
-          <Text style={styles.legendText}>Ringan</Text>
+          <Text style={styles.legendText}>{t('notif_pollution_high_title').includes('Pollution') ? 'Low' : 'Ringan'}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#EAB308' }]} />
-          <Text style={styles.legendText}>Sedang</Text>
+          <Text style={styles.legendText}>{t('notif_pollution_high_title').includes('Pollution') ? 'Moderate' : 'Sedang'}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-          <Text style={styles.legendText}>Parah</Text>
+          <Text style={styles.legendText}>{t('notif_pollution_high_title').includes('Pollution') ? 'Severe' : 'Parah'}</Text>
         </View>
       </View>
 
@@ -365,11 +369,11 @@ export default function CommunityScreen({
           {filteredReports.length === 0 ? (
             <View style={styles.emptyState}>
               <MaterialIcons name="search" size={48} color={colors.textGray} />
-              <Text style={styles.emptyTitle}>Tidak ada laporan</Text>
+              <Text style={styles.emptyTitle}>{t('comm_no_reports')}</Text>
               <Text style={styles.emptySubtitle}>
                 {selectedCategory !== 'all'
-                  ? `Belum ada laporan untuk kategori "${CATEGORIES.find(c => c.id === selectedCategory)?.label}"`
-                  : `Belum ada laporan polusi di ${selectedCity || 'area ini'}.`
+                  ? `${t('comm_no_reports')} (${CATEGORIES.find(c => c.id === selectedCategory)?.label})`
+                  : t('comm_no_reports')
                 }
               </Text>
               <TouchableOpacity
@@ -378,7 +382,7 @@ export default function CommunityScreen({
                 activeOpacity={0.7}
               >
                 <MaterialIcons name="add" size={16} color="#FFFFFF" />
-                <Text style={styles.emptyButtonText}>Buat Laporan</Text>
+                <Text style={styles.emptyButtonText}>{t('comm_add_report')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -407,7 +411,7 @@ export default function CommunityScreen({
         {filteredReports.length > 0 && (
           <View style={styles.bottomLoader}>
             <Text style={styles.bottomLoaderText}>
-              {filteredReports.length} laporan ditampilkan
+              {filteredReports.length} {t('trust_reports').toLowerCase()}
             </Text>
           </View>
         )}
@@ -444,7 +448,7 @@ export default function CommunityScreen({
         >
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Pilih Kota</Text>
+              <Text style={styles.modalTitle}>{t('comm_search_modal_title')}</Text>
               <TouchableOpacity
                 onPress={() => {
                   setSearchModalVisible(false);
@@ -460,7 +464,7 @@ export default function CommunityScreen({
               <MaterialIcons name="search" size={18} color={colors.textGray} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Cari nama kota..."
+                placeholder={t('comm_search_placeholder')}
                 placeholderTextColor={colors.textGray}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -490,7 +494,7 @@ export default function CommunityScreen({
               <Text style={[
                 styles.cityItemText,
                 !selectedCity && styles.cityItemTextActive
-              ]}>Semua Kota</Text>
+              ]}>{t('comm_filter_city')}</Text>
               {!selectedCity && (
                 <MaterialIcons name="check" size={18} color={colors.primary} />
               )}
@@ -501,7 +505,7 @@ export default function CommunityScreen({
             {filteredCities.length === 0 ? (
               <View style={styles.noResultContainer}>
                 <MaterialIcons name="location-pin" size={32} color={colors.textGray} />
-                <Text style={styles.noResultText}>Kota "{searchQuery}" tidak ditemukan</Text>
+                <Text style={styles.noResultText}>{searchQuery} {t('comm_not_found')}</Text>
               </View>
             ) : (
               <FlatList
@@ -562,7 +566,7 @@ export default function CommunityScreen({
         >
           <Pressable style={styles.sortModalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sortModalHeader}>
-              <Text style={styles.sortModalTitle}>Urutkan Laporan</Text>
+              <Text style={styles.sortModalTitle}>{t('comm_sort_title')}</Text>
               <TouchableOpacity
                 onPress={() => setSortModalVisible(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -584,7 +588,7 @@ export default function CommunityScreen({
                 <Text style={[
                   styles.sortOptionText,
                   sortBy === 'terbaru' && styles.sortOptionTextActive
-                ]}>Terbaru</Text>
+                ]}>{t('comm_sort_latest')}</Text>
               </View>
               {sortBy === 'terbaru' && (
                 <MaterialIcons name="check" size={18} color={colors.primary} />
@@ -604,7 +608,7 @@ export default function CommunityScreen({
                 <Text style={[
                   styles.sortOptionText,
                   sortBy === 'terpopuler' && styles.sortOptionTextActive
-                ]}>Terpopuler (Upvote Tertinggi)</Text>
+                ]}>{t('comm_sort_popular')} ({t('comm_sort_upvote')})</Text>
               </View>
               {sortBy === 'terpopuler' && (
                 <MaterialIcons name="check" size={18} color={colors.primary} />

@@ -20,9 +20,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import { supabase } from '../config/supabase';
 import { File, Paths } from 'expo-file-system';
+import { useLanguage } from '../i18n/i18n';
 
 export default function AddReportScreen({ onSubmit, onBack }) {
+  const { t } = useLanguage();
   const [selectedType, setSelectedType] = useState('Asap pabrik');
+
   const [severity, setSeverity] = useState('Sedang');
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState([]);
@@ -38,13 +41,17 @@ export default function AddReportScreen({ onSubmit, onBack }) {
   const [locationError, setLocationError] = useState(null);
 
   const pollutionTypes = [
-    { id: 'Asap pabrik', label: 'Asap pabrik', icon: () => <MaterialIcons name="domain" size={24} color={colors.textDark} /> },
-    { id: 'Pembakaran', label: 'Pembakaran', icon: () => <MaterialIcons name="whatshot" size={24} color={colors.textDark} /> },
-    { id: 'Sampah Terbakar', label: 'Sampah Terbakar', icon: () => <MaterialIcons name="delete" size={24} color={colors.textDark} /> },
-    { id: 'Knalpot Kendaraan', label: 'Knalpot Kendaraan', icon: () => <MaterialIcons name="directions-car" size={24} color={colors.textDark} /> },
+    { id: 'Asap pabrik', label: t('cat_factory_smoke'), icon: () => <MaterialIcons name="domain" size={24} color={colors.textDark} /> },
+    { id: 'Pembakaran', label: t('cat_burning'), icon: () => <MaterialIcons name="whatshot" size={24} color={colors.textDark} /> },
+    { id: 'Sampah Terbakar', label: t('cat_burning_trash'), icon: () => <MaterialIcons name="delete" size={24} color={colors.textDark} /> },
+    { id: 'Knalpot Kendaraan', label: t('cat_vehicle_exhaust'), icon: () => <MaterialIcons name="directions-car" size={24} color={colors.textDark} /> },
   ];
 
-  const severities = ['Ringan', 'Sedang', 'Parah'];
+  const severityKeys = [
+    { id: 'Ringan', label: t('severity_mild') },
+    { id: 'Sedang', label: t('severity_moderate') },
+    { id: 'Parah', label: t('severity_severe') },
+  ];
 
   useEffect(() => {
     fetchLocation();
@@ -58,7 +65,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationError('Izin lokasi ditolak. Aktifkan di pengaturan.');
+        setLocationError(t('report_location_denied'));
         setLocationLoading(false);
         return;
       }
@@ -77,7 +84,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
         setAddress(addr);
       }
     } catch (err) {
-      setLocationError('Gagal mendapatkan lokasi. Coba lagi.');
+      setLocationError(t('report_location_failed'));
       console.error('Location error:', err);
     } finally {
       setLocationLoading(false);
@@ -85,19 +92,19 @@ export default function AddReportScreen({ onSubmit, onBack }) {
   };
 
   const getAddressText = () => {
-    if (!address) return 'Lokasi tidak diketahui';
+    if (!address) return t('report_location_unknown');
     const parts = [];
     if (address.street) parts.push(address.street);
     if (address.subregion) parts.push(address.subregion);
     if (address.city) parts.push(address.city);
     if (parts.length === 0 && address.name) parts.push(address.name);
-    return parts.join(', ') || 'Lokasi ditemukan';
+    return parts.join(', ') || t('report_location_found');
   };
 
   const getAccuracyText = () => {
     if (!location) return '';
     const accuracy = Math.round(location.coords.accuracy);
-    return `GPS aktif · akurasi ${accuracy}m`;
+    return t('report_gps_accuracy')(accuracy);
   };
 
   const uploadImageToSupabase = async (uri) => {
@@ -173,8 +180,8 @@ export default function AddReportScreen({ onSubmit, onBack }) {
       } catch (error) {
         console.log(`❌ Error uploading image ${i + 1}:`, error);
         Alert.alert(
-          'Gagal Upload Foto',
-          `Foto ${i + 1} gagal diupload. Laporan tetap akan dikirim tanpa foto. Error: ${error.message || 'Unknown error'}`
+          t('report_upload_photo_failed_title'),
+          t('report_upload_photo_failed_desc')(i + 1, error.message || 'Unknown error')
         );
       }
       const progress = ((i + 1) / totalImages) * 70;
@@ -202,11 +209,11 @@ export default function AddReportScreen({ onSubmit, onBack }) {
     }
 
     if (!selectedType) {
-      Alert.alert("Error", "Harap pilih jenis polusi.");
+      Alert.alert("Error", t('report_type_empty'));
       return;
     }
     if (!location) {
-      Alert.alert("Error", "Lokasi belum tersedia. Pastikan GPS aktif.");
+      Alert.alert("Error", t('report_location_empty'));
       return;
     }
 
@@ -220,7 +227,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Error', 'Anda harus login terlebih dahulu');
+        Alert.alert('Error', t('report_login_first'));
         hasSubmitted.current = false;
         setIsSubmitting(false);
         return;
@@ -260,8 +267,8 @@ export default function AddReportScreen({ onSubmit, onBack }) {
           } catch (error) {
             console.log(`❌ Error uploading image ${i + 1}:`, error);
             Alert.alert(
-              'Gagal Upload Foto',
-              `Foto ${i + 1} gagal diupload. Laporan tetap akan dikirim tanpa foto. Error: ${error.message || 'Network error'}`
+              t('report_upload_photo_failed_title'),
+              t('report_upload_photo_failed_desc')(i + 1, error.message || 'Network error')
             );
             // Lanjutkan ke gambar berikutnya
           }
@@ -319,10 +326,10 @@ export default function AddReportScreen({ onSubmit, onBack }) {
       }
 
       Alert.alert(
-        "✅ Laporan Terkirim",
+        t('report_success_title'),
         finalPhotoUrls.length > 0
-          ? "Terima kasih! Laporan dan foto Anda berhasil diunggah."
-          : "Terima kasih! Laporan berhasil diunggah. (Foto gagal diupload)",
+          ? t('report_success_desc')
+          : t('report_success_no_photo_desc'),
         [
           {
             text: "OK",
@@ -338,7 +345,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
 
     } catch (error) {
       console.log('❌ Submit error:', error);
-      Alert.alert('Error', `Gagal mengirim laporan: ${error.message || 'Silakan coba lagi'}`);
+      Alert.alert('Error', t('report_error_submit')(error.message || 'Please try again'));
       hasSubmitted.current = false;
     } finally {
       setIsSubmitting(false);
@@ -348,13 +355,13 @@ export default function AddReportScreen({ onSubmit, onBack }) {
 
   const handleTakePhoto = async () => {
     if (photos.length >= 3) {
-      Alert.alert('Info', 'Maksimum 3 foto.');
+      Alert.alert('Info', t('report_max_photos'));
       return;
     }
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Izin Ditolak', 'Izinkan akses kamera untuk mengambil foto.');
+      Alert.alert(t('report_camera_permission_title'), t('report_camera_permission_desc'));
       return;
     }
 
@@ -376,13 +383,13 @@ export default function AddReportScreen({ onSubmit, onBack }) {
 
   const handlePickFromGallery = async () => {
     if (photos.length >= 3) {
-      Alert.alert('Info', 'Maksimum 3 foto.');
+      Alert.alert('Info', t('report_max_photos'));
       return;
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Izin Ditolak', 'Izinkan akses galeri untuk memilih foto.');
+      Alert.alert(t('report_gallery_permission_title'), t('report_gallery_permission_desc'));
       return;
     }
 
@@ -405,11 +412,11 @@ export default function AddReportScreen({ onSubmit, onBack }) {
   const renderProgressBar = () => {
     if (!isSubmitting || uploadProgress === 0) return null;
 
-    let statusText = 'Mempersiapkan...';
-    if (uploadProgress < 20) statusText = 'Mempersiapkan...';
-    else if (uploadProgress < 80) statusText = `Mengunggah foto (${Math.round(uploadProgress)}%)...`;
-    else if (uploadProgress < 100) statusText = 'Menyimpan data...';
-    else statusText = 'Selesai! ✅';
+    let statusText = t('report_preparing');
+    if (uploadProgress < 20) statusText = t('report_preparing');
+    else if (uploadProgress < 80) statusText = t('report_uploading_progress')(Math.round(uploadProgress));
+    else if (uploadProgress < 100) statusText = t('report_saving');
+    else statusText = t('report_done');
 
     return (
       <View style={styles.progressContainer}>
@@ -432,12 +439,12 @@ export default function AddReportScreen({ onSubmit, onBack }) {
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <MaterialIcons name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tambah Laporan Polusi</Text>
+          <Text style={styles.headerTitle}>{t('report_title')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Section: Jenis Polusi */}
-          <Text style={styles.label}>Jenis Polusi <Text style={styles.asterisk}>*</Text></Text>
+          <Text style={styles.label}>{t('report_type')} <Text style={styles.asterisk}>*</Text></Text>
           <View style={styles.grid}>
             {pollutionTypes.map((type) => {
               const isSelected = selectedType === type.id;
@@ -462,18 +469,18 @@ export default function AddReportScreen({ onSubmit, onBack }) {
           </View>
 
           {/* Section: Tingkat Keparahan */}
-          <Text style={styles.label}>Tingkat Keparahan <Text style={styles.asterisk}>*</Text></Text>
+          <Text style={styles.label}>{t('report_severity')} <Text style={styles.asterisk}>*</Text></Text>
           <View style={styles.severityRow}>
-            {severities.map((item) => {
-              const isSelected = severity === item;
+            {severityKeys.map((item) => {
+              const isSelected = severity === item.id;
               return (
                 <TouchableOpacity
-                  key={item}
+                  key={item.id}
                   style={[
                     styles.severityBtn,
                     isSelected && styles.severityBtnActive
                   ]}
-                  onPress={() => setSeverity(item)}
+                  onPress={() => setSeverity(item.id)}
                   activeOpacity={0.7}
                   disabled={isSubmitting}
                 >
@@ -481,7 +488,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
                     styles.severityText,
                     isSelected && styles.severityTextActive
                   ]}>
-                    {item}
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -489,25 +496,25 @@ export default function AddReportScreen({ onSubmit, onBack }) {
           </View>
 
           {/* Section: Lokasi Kejadian (GPS) */}
-          <Text style={styles.label}>Lokasi Kejadian <Text style={styles.asterisk}>*</Text></Text>
+          <Text style={styles.label}>{t('report_location')} <Text style={styles.asterisk}>*</Text></Text>
           <TouchableOpacity style={styles.locationBox} onPress={fetchLocation} activeOpacity={0.7} disabled={isSubmitting}>
             {locationLoading ? (
               <>
                 <ActivityIndicator size="small" color={colors.primary} style={{ marginBottom: 8 }} />
-                <Text style={styles.locationText}>Mencari lokasi...</Text>
-                <Text style={styles.locationSubText}>Mohon tunggu sebentar</Text>
+                <Text style={styles.locationText}>{t('report_searching_location')}</Text>
+                <Text style={styles.locationSubText}>{t('report_wait')}</Text>
               </>
             ) : locationError ? (
               <>
                 <MaterialIcons name="warning" size={26} color="#EF4444" style={styles.locationPin} />
                 <Text style={[styles.locationText, { color: '#EF4444' }]}>{locationError}</Text>
-                <Text style={styles.locationSubText}>Ketuk untuk coba lagi</Text>
+                <Text style={styles.locationSubText}>{t('report_tap_retry')}</Text>
               </>
             ) : (
               <>
                 <MaterialIcons name="location-on" size={26} color={colors.primary} style={styles.locationPin} />
                 <Text style={styles.locationText}>{getAddressText()}</Text>
-                <Text style={styles.locationSubText}>Ketuk untuk refresh lokasi</Text>
+                <Text style={styles.locationSubText}>{t('report_tap_refresh')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -520,7 +527,7 @@ export default function AddReportScreen({ onSubmit, onBack }) {
 
           {/* Section: Foto (opsional) */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.label}>Foto (opsional)</Text>
+            <Text style={styles.label}>{t('report_photos_optional')}</Text>
             <Text style={styles.counterText}>{photos.length} / 3</Text>
           </View>
 
@@ -546,20 +553,20 @@ export default function AddReportScreen({ onSubmit, onBack }) {
           <View style={styles.photoRow}>
             <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto} activeOpacity={0.7} disabled={isSubmitting}>
               <MaterialIcons name="photo-camera" size={24} color={colors.textGray} />
-              <Text style={styles.photoBtnText}>Ambil foto</Text>
+              <Text style={styles.photoBtnText}>{t('report_take_photo')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.photoBtn} onPress={handlePickFromGallery} activeOpacity={0.7} disabled={isSubmitting}>
               <MaterialIcons name="image" size={24} color={colors.textGray} />
-              <Text style={styles.photoBtnText}>Dari galeri</Text>
+              <Text style={styles.photoBtnText}>{t('report_from_gallery')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Section: Deskripsi tambahan */}
-          <Text style={styles.label}>Deskripsi tambahan (opsional)</Text>
+          <Text style={styles.label}>{t('report_desc_optional')}</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Ceritakan kondisi lebih detail..."
+            placeholder={t('report_desc_placeholder')}
             placeholderTextColor={colors.textGray}
             value={description}
             onChangeText={setDescription}
@@ -585,12 +592,12 @@ export default function AddReportScreen({ onSubmit, onBack }) {
             {isSubmitting ? (
               <>
                 <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.submitText}> Mengirim...</Text>
+                <Text style={styles.submitText}> {t('report_sending')}</Text>
               </>
             ) : (
               <>
                 <MaterialIcons name="send" size={18} color="#FFFFFF" style={styles.submitIcon} />
-                <Text style={styles.submitText}>Kirim laporan</Text>
+                <Text style={styles.submitText}>{t('report_submit_btn')}</Text>
               </>
             )}
           </TouchableOpacity>
